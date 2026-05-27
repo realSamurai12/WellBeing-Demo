@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#7C9885" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="WellBeing" />
+  <meta name="description" content="Aplicatia ta de well-being" />
+  <title>WellBeing 🌿</title>
+  <link rel="manifest" href="manifest.json" />
+  <!-- PWA icons inline via SVG data URIs -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%237C9885'/%3E%3Ctext x='256' y='340' text-anchor='middle' font-size='280' font-family='serif'%3E🌿%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%237C9885'/%3E%3Ctext x='256' y='340' text-anchor='middle' font-size='280' font-family='serif'%3E🌿%3C/text%3E%3C/svg%3E" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #F4F0EB; overflow: hidden; }
+    #root { height: 100%; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #C8B9A8; border-radius: 2px; }
+    /* Safe areas for notch phones */
+    .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const MOODS = ["😔","😐","🙂","😊","😁"];
+const MOOD_LABELS = ["Trist","Neutru","Bine","Fericit","Excelent"];
+const DAYS_RO = ["D","L","M","M","J","V","S"];
+const MONTHS_RO = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+
+const MEDITATIONS = [
+  {id:1,title:"Respirație 4-7-8",duration:"5 min",desc:"Inspiră 4s, ține 7s, expiră 8s. Calmează sistemul nervos.",icon:"🌬️",color:"#7C9885"},
+  {id:2,title:"Body Scan",duration:"10 min",desc:"Scanează corpul de la cap la picioare, eliberând tensiunea.",icon:"🧘",color:"#8B7BA8"},
+  {id:3,title:"Mindfulness",duration:"7 min",desc:"Fii prezent în momentul actual, observând fără judecată.",icon:"🌿",color:"#5B8A8A"},
+  {id:4,title:"Vizualizare",duration:"12 min",desc:"Imaginează-ți un loc liniștit și sigur pentru tine.",icon:"☁️",color:"#8A7A6B"},
+];
+
+const AFFIRMATIONS = [
+  "Sunt capabil/ă de lucruri extraordinare.",
+  "Fiecare zi îmi aduce noi oportunități de creștere.",
+  "Mă iubesc și mă accept exact așa cum sunt.",
+  "Am puterea să depășesc orice obstacol.",
+  "Corpul meu este sănătos și plin de energie.",
+  "Mintea mea este clară și focusată.",
+  "Sunt recunoscător/oare pentru tot ce am.",
+];
+
+const FOOD_DB = [
+  {name:"Piept de pui 100g",cal:165,p:31,c:0,f:3.6},
+  {name:"Orez fiert 100g",cal:130,p:2.7,c:28,f:0.3},
+  {name:"Ou fiert",cal:68,p:6,c:0.6,f:4.8},
+  {name:"Banana medie",cal:89,p:1.1,c:23,f:0.3},
+  {name:"Iaurt grecesc 100g",cal:59,p:10,c:3.6,f:0.4},
+  {name:"Avocado 100g",cal:160,p:2,c:9,f:15},
+  {name:"Salată verde 100g",cal:15,p:1.4,c:2.9,f:0.2},
+  {name:"Somon 100g",cal:208,p:20,c:0,f:13},
+  {name:"Pâine integrală felie",cal:80,p:4,c:15,f:1.1},
+  {name:"Nuci 30g",cal:196,p:4.6,c:4.1,f:19.6},
+];
+
+const initialState = () => {
+  try { return JSON.parse(localStorage.getItem("wellbeing_data")||"{}"); }
+  catch { return {}; }
+};
+
+const CSS = `
+  .tab-btn{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;border-radius:12px;transition:all .2s;}
+  .tab-btn:hover{background:rgba(124,152,133,.1);}
+  .card{background:#FFFDF9;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 2px 16px rgba(0,0,0,.05);}
+  .btn-primary{background:#7C9885;color:white;border:none;border-radius:12px;padding:11px 22px;font-size:14px;cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;letter-spacing:.5px;transition:all .2s;}
+  .btn-primary:hover{background:#6A8A72;}
+  .btn-primary:active{transform:scale(.97);}
+  .btn-outline{background:transparent;color:#7C9885;border:1.5px solid #7C9885;border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .2s;}
+  .btn-outline:hover{background:#7C9885;color:white;}
+  input,textarea{font-family:'Jost',sans-serif;outline:none;}
+  .mood-btn{background:none;border:2px solid transparent;border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+  .mood-btn.active{border-color:#7C9885;background:rgba(124,152,133,.1);transform:scale(1.1);}
+  .food-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;background:#F7F3EE;margin-bottom:6px;}
+  .cal-cell{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;cursor:pointer;font-family:'Jost',sans-serif;position:relative;transition:all .2s;flex-direction:column;gap:1px;}
+  .cal-cell:hover{background:rgba(124,152,133,.15);}
+  .cal-cell.today{background:#7C9885;color:white;font-weight:600;}
+  .cal-cell.selected{outline:2px solid #7C9885;}
+  .anim-fade{animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes breathIn{from{transform:scale(.7)}to{transform:scale(1.3)}}
+  @keyframes breathOut{from{transform:scale(1.3)}to{transform:scale(.7)}}
+  .breath-circle{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+`;
+
+function App() {
+  const [tab, setTab] = useState("home");
+  const [data, setData] = useState(initialState);
+  const [today] = useState(()=>new Date().toISOString().split("T")[0]);
+  const [calDate, setCalDate] = useState(new Date());
+  const [meditating, setMeditating] = useState(null);
+  const [meditTimer, setMeditTimer] = useState(0);
+  const [meditRunning, setMeditRunning] = useState(false);
+  const [affirmIdx, setAffirmIdx] = useState(()=>Math.floor(Math.random()*AFFIRMATIONS.length));
+  const [foodSearch, setFoodSearch] = useState("");
+  const [breathPhase, setBreathPhase] = useState("idle");
+  const [breathCount, setBreathCount] = useState(0);
+  const breathRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const save = (nd) => { setData(nd); localStorage.setItem("wellbeing_data",JSON.stringify(nd)); };
+  const todayData = () => data[today]||{};
+  const setTodayKey = (key,val) => save({...data,[today]:{...todayData(),[key]:val}});
+
+  const meals = todayData().meals||[];
+  const totalCal = meals.reduce((s,m)=>s+m.cal,0);
+  const totalP = meals.reduce((s,m)=>s+m.p,0);
+  const totalC = meals.reduce((s,m)=>s+m.c,0);
+  const totalF = meals.reduce((s,m)=>s+m.f,0);
+  const calGoal = todayData().calGoal||2000;
+  const addMeal = (food) => { setTodayKey("meals",[...meals,food]); setFoodSearch(""); };
+  const removeMeal = (i) => setTodayKey("meals",meals.filter((_,idx)=>idx!==i));
+
+  const water = todayData().water||0;
+  const addWater = () => setTodayKey("water",Math.min(water+1,10));
+
+  const mood = todayData().mood;
+  const setMood = (m) => setTodayKey("mood",m);
+  const journal = todayData().journal||"";
+  const setJournal = (j) => setTodayKey("journal",j);
+  const steps = todayData().steps||0;
+  const setSteps = (s) => setTodayKey("steps",parseInt(s)||0);
+  const sleep = todayData().sleep||0;
+  const setSleep = (s) => setTodayKey("sleep",parseFloat(s)||0);
+
+  const dateKey = calDate.toISOString().split("T")[0];
+  const events = (data[dateKey]||{}).events||[];
+  const [newEvent, setNewEvent] = useState("");
+  const addEvent = () => {
+    if(!newEvent.trim()) return;
+    save({...data,[dateKey]:{...(data[dateKey]||{}),events:[...events,newEvent.trim()]}});
+    setNewEvent("");
+  };
+
+  useEffect(()=>{
+    if(meditRunning && meditTimer>0){ timerRef.current=setTimeout(()=>setMeditTimer(t=>t-1),1000); }
+    else if(meditTimer===0 && meditRunning){ setMeditRunning(false); setTodayKey("meditDone",(todayData().meditDone||0)+1); }
+    return ()=>clearTimeout(timerRef.current);
+  },[meditRunning,meditTimer]);
+
+  const startMedit = (m) => { setMeditating(m); setMeditTimer(parseInt(m.duration)*60); setMeditRunning(false); };
+  const fmtTime = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+  const startBreath = () => {
+    setBreathPhase("inhale"); setBreathCount(0);
+    let count=0;
+    const cycle = () => {
+      setBreathPhase("inhale");
+      setTimeout(()=>setBreathPhase("hold"),4000);
+      setTimeout(()=>{ setBreathPhase("exhale"); count++; setBreathCount(count); },11000);
+      setTimeout(()=>{ if(count<4){cycle();}else{setBreathPhase("done");} },19000);
+    };
+    breathRef.current=setTimeout(cycle,0);
+  };
+  const stopBreath = () => { clearTimeout(breathRef.current); setBreathPhase("idle"); };
+
+  const getDaysInMonth = () => {
+    const y=calDate.getFullYear(),m=calDate.getMonth();
+    return { first:new Date(y,m,1).getDay(), days:new Date(y,m+1,0).getDate() };
+  };
+  const {first,days} = getDaysInMonth();
+  const calCells = Array(first).fill(null).concat(Array.from({length:days},(_,i)=>i+1));
+  const todayNum = new Date().getDate();
+  const isThisMonth = calDate.getMonth()===new Date().getMonth()&&calDate.getFullYear()===new Date().getFullYear();
+  const hasEvents = (d) => { if(!d)return false; const k=new Date(calDate.getFullYear(),calDate.getMonth(),d).toISOString().split("T")[0]; return ((data[k]||{}).events||[]).length>0; };
+  const hasMood = (d) => { if(!d)return null; const k=new Date(calDate.getFullYear(),calDate.getMonth(),d).toISOString().split("T")[0]; return (data[k]||{}).mood??null; };
+  const filteredFoods = FOOD_DB.filter(f=>f.name.toLowerCase().includes(foodSearch.toLowerCase()));
+  const wellScore = () => {
+    let s=0;
+    if(mood!==undefined)s+=20; if(water>=6)s+=20; if(steps>=8000)s+=20; if(sleep>=7)s+=20; if((todayData().meditDone||0)>0)s+=20;
+    return s;
+  };
+
+  const tabs=[{id:"home",icon:"🏠",label:"Acasă"},{id:"calendar",icon:"📅",label:"Calendar"},{id:"calories",icon:"🥗",label:"Calorii"},{id:"meditation",icon:"🧘",label:"Meditație"},{id:"mental",icon:"💚",label:"Mental"}];
+
+  return (
+    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"#F4F0EB",fontFamily:"'Georgia','Times New Roman',serif",color:"#2C2C2C",maxWidth:480,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.08)"}}>
+      <style>{CSS}</style>
+
+      {/* Header */}
+      <div className="safe-top" style={{padding:"16px 24px 12px",background:"#FFFDF9",borderBottom:"1px solid #EDE8E0",flexShrink:0}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,letterSpacing:.5}}>Bine ai venit 🌿</div>
+        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginTop:2}}>{new Date().toLocaleDateString("ro-RO",{weekday:"long",day:"numeric",month:"long"})}</div>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 0",WebkitOverflowScrolling:"touch"}}>
+        {tab==="home"&&<HomeTab wellScore={wellScore} mood={mood} setMood={setMood} water={water} addWater={addWater} steps={steps} setSteps={setSteps} sleep={sleep} setSleep={setSleep} totalCal={totalCal} calGoal={calGoal} affirmIdx={affirmIdx} setAffirmIdx={setAffirmIdx} meditDone={todayData().meditDone||0}/>}
+        {tab==="calendar"&&<CalendarTab calDate={calDate} setCalDate={setCalDate} calCells={calCells} hasEvents={hasEvents} hasMood={hasMood} todayNum={todayNum} isThisMonth={isThisMonth} dateKey={dateKey} events={events} newEvent={newEvent} setNewEvent={setNewEvent} addEvent={addEvent} data={data}/>}
+        {tab==="calories"&&<CaloriesTab meals={meals} removeMeal={removeMeal} totalCal={totalCal} totalP={totalP} totalC={totalC} totalF={totalF} calGoal={calGoal} setCalGoal={(v)=>setTodayKey("calGoal",v)} foodSearch={foodSearch} setFoodSearch={setFoodSearch} filteredFoods={filteredFoods} addMeal={addMeal}/>}
+        {tab==="meditation"&&<MeditationTab meditating={meditating} setMeditating={setMeditating} meditTimer={meditTimer} setMeditTimer={setMeditTimer} meditRunning={meditRunning} setMeditRunning={setMeditRunning} startMedit={startMedit} fmtTime={fmtTime} breathPhase={breathPhase} breathCount={breathCount} startBreath={startBreath} stopBreath={stopBreath} meditDone={todayData().meditDone||0}/>}
+        {tab==="mental"&&<MentalTab mood={mood} setMood={setMood} journal={journal} setJournal={setJournal} data={data}/>}
+        <div style={{height:80}}/>
+      </div>
+
+      {/* Bottom Nav */}
+      <div className="safe-bottom" style={{background:"#FFFDF9",borderTop:"1px solid #EDE8E0",display:"flex",justifyContent:"space-around",padding:"10px 0 4px",flexShrink:0,zIndex:100}}>
+        {tabs.map(t=>(
+          <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)} style={{opacity:tab===t.id?1:.45}}>
+            <span style={{fontSize:22}}>{t.icon}</span>
+            <span style={{fontSize:10,fontFamily:"'Jost',sans-serif",fontWeight:tab===t.id?500:400,color:tab===t.id?"#7C9885":"#8A8078"}}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HomeTab({wellScore,mood,setMood,water,addWater,steps,setSteps,sleep,setSleep,totalCal,calGoal,affirmIdx,setAffirmIdx,meditDone}){
+  const score=wellScore();
+  return(
+    <div className="anim-fade">
+      <div className="card" style={{textAlign:"center",background:"linear-gradient(135deg,#7C9885 0%,#5B8A8A 100%)",color:"white"}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,opacity:.85,marginBottom:4}}>Scorul tău de azi</div>
+        <div style={{fontSize:56,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",lineHeight:1}}>{score}</div>
+        <div style={{fontSize:12,opacity:.75,fontFamily:"'Jost',sans-serif",marginTop:2}}>din 100 puncte</div>
+        <div style={{display:"flex",justifyContent:"space-around",marginTop:14,borderTop:"1px solid rgba(255,255,255,.2)",paddingTop:12}}>
+          {[{icon:"💧",val:`${water}/8`,label:"Apă"},{icon:"👣",val:steps>=1000?`${(steps/1000).toFixed(1)}k`:steps,label:"Pași"},{icon:"😴",val:`${sleep}h`,label:"Somn"},{icon:"🧘",val:meditDone,label:"Medit."}].map(s=>(
+            <div key={s.label} style={{textAlign:"center"}}>
+              <div style={{fontSize:18}}>{s.icon}</div>
+              <div style={{fontSize:13,fontWeight:600,fontFamily:"'Jost',sans-serif"}}>{s.val}</div>
+              <div style={{fontSize:9,opacity:.75,fontFamily:"'Jost',sans-serif"}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{background:"#EEF3F0",border:"1.5px solid #C8D9CC"}}>
+        <div style={{fontSize:10,fontFamily:"'Jost',sans-serif",color:"#7C9885",fontWeight:500,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Afirmația zilei</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,color:"#2C2C2C",lineHeight:1.5,fontStyle:"italic"}}>"{AFFIRMATIONS[affirmIdx]}"</div>
+        <button className="btn-outline" style={{marginTop:10,fontSize:12}} onClick={()=>setAffirmIdx((affirmIdx+1)%AFFIRMATIONS.length)}>Altă afirmație ✨</button>
+      </div>
+
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>Cum te simți azi?</div>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          {MOODS.map((m,i)=>(
+            <div key={i} style={{textAlign:"center"}}>
+              <button className={`mood-btn ${mood===i?"active":""}`} onClick={()=>setMood(i)}>{m}</button>
+              <div style={{fontSize:9,color:"#8A8078",marginTop:3,fontFamily:"'Jost',sans-serif"}}>{MOOD_LABELS[i]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600}}>Hidratare</div>
+          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#7C9885"}}>{water}/8 pahare</div>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+          {Array(8).fill(0).map((_,i)=>(<span key={i} style={{fontSize:22,opacity:i<water?1:.2,transition:"all .3s"}}>💧</span>))}
+        </div>
+        <button className="btn-primary" style={{width:"100%"}} onClick={addWater}>+ Adaugă un pahar</button>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {[{label:"👣 Pași",val:steps,set:setSteps,goal:8000,unit:"",color:"#C4A26B"},{label:"😴 Somn",val:sleep,set:setSleep,goal:8,unit:"h",color:"#8B7BA8",step:"0.5"}].map(item=>(
+          <div key={item.label} className="card" style={{margin:0}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,marginBottom:8}}>{item.label}</div>
+            <input type="number" step={item.step||1} value={item.val||""} onChange={e=>item.set(e.target.value)} placeholder="0"
+              style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:10,padding:"7px",fontSize:20,fontWeight:700,color:"#7C9885",background:"#F7F3EE",textAlign:"center"}}/>
+            <div style={{fontSize:9,color:"#8A8078",marginTop:5,fontFamily:"'Jost',sans-serif",textAlign:"center"}}>Obiectiv: {item.goal}{item.unit}</div>
+            <div style={{marginTop:7,height:5,background:"#E8E0D5",borderRadius:3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${Math.min((item.val/item.goal)*100,100)}%`,background:item.val>=item.goal?"#7C9885":item.color,borderRadius:3,transition:"width .5s"}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{marginTop:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600}}>🥗 Calorii azi</div>
+          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:totalCal>calGoal?"#C47B6B":"#7C9885"}}>{totalCal}/{calGoal} kcal</div>
+        </div>
+        <div style={{height:7,background:"#E8E0D5",borderRadius:4,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${Math.min((totalCal/calGoal)*100,100)}%`,background:totalCal>calGoal?"#C47B6B":"#7C9885",borderRadius:4,transition:"width .5s"}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalendarTab({calDate,setCalDate,calCells,hasEvents,hasMood,todayNum,isThisMonth,dateKey,events,newEvent,setNewEvent,addEvent,data}){
+  const selectDay=(d)=>{ if(!d)return; setCalDate(new Date(calDate.getFullYear(),calDate.getMonth(),d)); };
+  return(
+    <div className="anim-fade">
+      <div className="card">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <button onClick={()=>setCalDate(new Date(calDate.getFullYear(),calDate.getMonth()-1,1))} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#7C9885",padding:"4px 10px"}}>‹</button>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700}}>{MONTHS_RO[calDate.getMonth()]} {calDate.getFullYear()}</div>
+          <button onClick={()=>setCalDate(new Date(calDate.getFullYear(),calDate.getMonth()+1,1))} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#7C9885",padding:"4px 10px"}}>›</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+          {DAYS_RO.map((d,i)=>(<div key={i} style={{textAlign:"center",fontFamily:"'Jost',sans-serif",fontSize:10,color:"#8A8078",fontWeight:500,padding:"3px 0"}}>{d}</div>))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+          {calCells.map((d,i)=>{
+            const isToday=isThisMonth&&d===todayNum;
+            const isSelected=d===calDate.getDate()&&!isToday;
+            const moodOfDay=hasMood(d);
+            const hasEv=hasEvents(d);
+            return(
+              <div key={i} className={`cal-cell ${isToday?"today":""} ${isSelected?"selected":""}`} onClick={()=>selectDay(d)}>
+                {d&&<>
+                  <span style={{fontSize:11}}>{d}</span>
+                  {moodOfDay!==null&&<span style={{fontSize:8}}>{MOODS[moodOfDay]}</span>}
+                  {hasEv&&<span style={{width:3,height:3,borderRadius:"50%",background:isToday?"white":"#7C9885",display:"block"}}/>}
+                </>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>📌 {calDate.toLocaleDateString("ro-RO",{day:"numeric",month:"long"})}</div>
+        {events.length===0&&<div style={{color:"#B0A898",fontFamily:"'Jost',sans-serif",fontSize:13,fontStyle:"italic",marginBottom:10}}>Nicio activitate planificată</div>}
+        {events.map((ev,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"#EEF3F0",borderRadius:10,marginBottom:7}}>
+            <span style={{fontSize:14}}>📍</span>
+            <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,flex:1}}>{ev}</span>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:8,marginTop:6}}>
+          <input value={newEvent} onChange={e=>setNewEvent(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addEvent()} placeholder="Adaugă activitate..."
+            style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:10,padding:"9px 12px",fontSize:14,background:"#F7F3EE"}}/>
+          <button className="btn-primary" onClick={addEvent} style={{padding:"9px 16px"}}>+</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>📊 Dispoziție — 7 zile</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:5,height:70}}>
+          {Array(7).fill(0).map((_,i)=>{
+            const d=new Date(); d.setDate(d.getDate()-6+i);
+            const k=d.toISOString().split("T")[0];
+            const m=(data[k]||{}).mood;
+            return(
+              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                <span style={{fontSize:12}}>{m!==undefined?MOODS[m]:"·"}</span>
+                <div style={{width:"100%",background:m!==undefined?"#7C9885":"#E8E0D5",borderRadius:4,height:m!==undefined?`${((m+1)/5)*40+8}px`:"8px",transition:"height .4s"}}/>
+                <span style={{fontSize:8,fontFamily:"'Jost',sans-serif",color:"#8A8078"}}>{DAYS_RO[d.getDay()]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CaloriesTab({meals,removeMeal,totalCal,totalP,totalC,totalF,calGoal,setCalGoal,foodSearch,setFoodSearch,filteredFoods,addMeal}){
+  const pct=Math.min((totalCal/calGoal)*100,100);
+  const remaining=calGoal-totalCal;
+  return(
+    <div className="anim-fade">
+      <div className="card" style={{textAlign:"center"}}>
+        <svg width="150" height="150" style={{display:"block",margin:"0 auto 10px"}}>
+          <circle cx="75" cy="75" r="62" fill="none" stroke="#E8E0D5" strokeWidth="11"/>
+          <circle cx="75" cy="75" r="62" fill="none" stroke={totalCal>calGoal?"#C47B6B":"#7C9885"} strokeWidth="11" strokeLinecap="round"
+            strokeDasharray={`${2*Math.PI*62}`} strokeDashoffset={`${2*Math.PI*62*(1-pct/100)}`} transform="rotate(-90 75 75)" style={{transition:"stroke-dashoffset .7s ease"}}/>
+          <text x="75" y="68" textAnchor="middle" fontSize="26" fontFamily="'Cormorant Garamond',serif" fontWeight="700" fill="#2C2C2C">{totalCal}</text>
+          <text x="75" y="84" textAnchor="middle" fontSize="11" fontFamily="'Jost',sans-serif" fill="#8A8078">kcal</text>
+          <text x="75" y="100" textAnchor="middle" fontSize="10" fontFamily="'Jost',sans-serif" fill={remaining<0?"#C47B6B":"#7C9885"}>{remaining<0?`+${Math.abs(remaining)} depășit`:`${remaining} rămase`}</text>
+        </svg>
+        <div style={{display:"flex",justifyContent:"space-around",marginBottom:12}}>
+          {[{label:"Proteine",val:totalP.toFixed(0),color:"#7C9885"},{label:"Carbohidrați",val:totalC.toFixed(0),color:"#C4A26B"},{label:"Grăsimi",val:totalF.toFixed(0),color:"#8B7BA8"}].map(m=>(
+            <div key={m.label} style={{textAlign:"center"}}>
+              <div style={{fontSize:17,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",color:m.color}}>{m.val}g</div>
+              <div style={{fontSize:9,color:"#8A8078",fontFamily:"'Jost',sans-serif"}}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,fontFamily:"'Jost',sans-serif",color:"#8A8078",whiteSpace:"nowrap"}}>Obiectiv:</span>
+          <input type="number" value={calGoal} onChange={e=>setCalGoal(parseInt(e.target.value)||2000)}
+            style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:8,padding:"5px",fontSize:14,textAlign:"center",background:"#F7F3EE"}}/>
+          <span style={{fontSize:11,fontFamily:"'Jost',sans-serif",color:"#8A8078"}}>kcal</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>🍽️ Adaugă aliment</div>
+        <input value={foodSearch} onChange={e=>setFoodSearch(e.target.value)} placeholder="Caută aliment..."
+          style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:10,padding:"9px 12px",fontSize:14,background:"#F7F3EE",marginBottom:8}}/>
+        <div style={{maxHeight:200,overflowY:"auto"}}>
+          {filteredFoods.map((f,i)=>(
+            <div key={i} className="food-item">
+              <div>
+                <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:500}}>{f.name}</div>
+                <div style={{fontSize:10,color:"#8A8078",fontFamily:"'Jost',sans-serif"}}>P:{f.p}g C:{f.c}g G:{f.f}g</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:7}}>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:15,color:"#7C9885"}}>{f.cal}</span>
+                <button className="btn-primary" style={{padding:"5px 11px",fontSize:13}} onClick={()=>addMeal(f)}>+</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {meals.length>0&&(
+        <div className="card">
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>📋 Jurnal</div>
+          {meals.map((m,i)=>(
+            <div key={i} className="food-item">
+              <div style={{fontFamily:"'Jost',sans-serif",fontSize:13}}>{m.name}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:"#7C9885"}}>{m.cal} kcal</span>
+                <button onClick={()=>removeMeal(i)} style={{background:"none",border:"none",color:"#C47B6B",cursor:"pointer",fontSize:18}}>×</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MeditationTab({meditating,setMeditating,meditTimer,setMeditTimer,meditRunning,setMeditRunning,startMedit,fmtTime,breathPhase,breathCount,startBreath,stopBreath,meditDone}){
+  const breathConfig={
+    idle:{scale:.85,bg:"radial-gradient(circle,#C8D9CC,#A8C4B0)",text:"Apasă Start",sub:"4-7-8 respirație"},
+    inhale:{scale:1.3,bg:"radial-gradient(circle,#7C9885,#5B8A8A)",text:"Inspiră...",sub:"4 secunde"},
+    hold:{scale:1.3,bg:"radial-gradient(circle,#5B8A8A,#4A7A7A)",text:"Ține...",sub:"7 secunde"},
+    exhale:{scale:.75,bg:"radial-gradient(circle,#8B7BA8,#7A6A9A)",text:"Expiră...",sub:"8 secunde"},
+    done:{scale:.85,bg:"radial-gradient(circle,#7C9885,#5B8A8A)",text:"✓ Gata!",sub:`${breathCount} cicluri`},
+  };
+  const bc=breathConfig[breathPhase];
+  return(
+    <div className="anim-fade">
+      {meditating?(
+        <div className="card" style={{textAlign:"center"}}>
+          <button onClick={()=>{setMeditating(null);setMeditRunning(false);}} style={{background:"none",border:"none",color:"#7C9885",cursor:"pointer",fontFamily:"'Jost',sans-serif",fontSize:13,marginBottom:14,display:"flex",alignItems:"center",gap:4}}>← Înapoi</button>
+          <div style={{fontSize:38,marginBottom:7}}>{meditating.icon}</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700,marginBottom:4}}>{meditating.title}</div>
+          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:20,lineHeight:1.6}}>{meditating.desc}</div>
+          <div style={{fontSize:54,fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:meditating.color,marginBottom:20,letterSpacing:-2}}>{fmtTime(meditTimer)}</div>
+          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+            <button className="btn-primary" style={{background:meditating.color}} onClick={()=>setMeditRunning(r=>!r)}>{meditRunning?"⏸ Pauză":"▶ Start"}</button>
+            <button className="btn-outline" onClick={()=>{setMeditating(null);setMeditRunning(false);}}>Oprește</button>
+          </div>
+          {meditTimer===0&&<div style={{marginTop:18,fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:"#7C9885"}}>🎉 Sesiune completată!</div>}
+        </div>
+      ):(
+        <>
+          <div className="card" style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:600,marginBottom:3}}>Sesiuni completate azi</div>
+            <div style={{fontSize:46,fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:"#7C9885"}}>{meditDone}</div>
+          </div>
+          <div className="card">
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:14}}>🌿 Meditații ghidate</div>
+            {MEDITATIONS.map(m=>(
+              <div key={m.id} onClick={()=>startMedit(m)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px",background:"#F7F3EE",borderRadius:13,marginBottom:9,cursor:"pointer",border:"1.5px solid transparent",transition:"border-color .2s"}}
+                onTouchStart={e=>e.currentTarget.style.borderColor=m.color} onTouchEnd={e=>e.currentTarget.style.borderColor="transparent"}>
+                <div style={{width:44,height:44,borderRadius:12,background:m.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{m.icon}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:600,fontSize:15}}>{m.title}</div>
+                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:"#8A8078",marginTop:2}}>{m.desc}</div>
+                </div>
+                <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:m.color,fontWeight:600,flexShrink:0}}>{m.duration}</div>
+              </div>
+            ))}
+          </div>
+          <div className="card" style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:18}}>🌬️ Respirație conștientă</div>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
+              <div className="breath-circle" style={{background:bc.bg,transform:`scale(${bc.scale})`,transition:breathPhase==="inhale"?"transform 4s ease-in-out,background 1s":breathPhase==="exhale"?"transform 8s ease-in-out,background 1s":"transform .5s,background 1s"}}>
+                <div>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,color:"white"}}>{bc.text}</div>
+                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:10,color:"rgba(255,255,255,.8)",marginTop:3}}>{bc.sub}</div>
+                </div>
+              </div>
+            </div>
+            {breathPhase==="idle"||breathPhase==="done"
+              ?<button className="btn-primary" onClick={startBreath}>{breathPhase==="done"?"Repetă":"Începe exercițiul"}</button>
+              :<button className="btn-outline" onClick={stopBreath}>Oprește</button>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MentalTab({mood,setMood,journal,setJournal,data}){
+  const [gratitude,setGratitude]=useState(["","",""]);
+  const [showTips,setShowTips]=useState(null);
+  const mentalTips=[
+    {icon:"🤗",title:"Conexiune socială",tip:"Petrece 15 minute vorbind cu cineva drag. Conexiunile umane sunt esențiale pentru sănătatea mentală.",color:"#C4A26B"},
+    {icon:"🌳",title:"Timp în natură",tip:"O plimbare de 20 min în natură reduce cortizolul cu 21% și îmbunătățește dispoziția.",color:"#7C9885"},
+    {icon:"📵",title:"Detox digital",tip:"Ia o pauză de 1 oră de la ecrane. Citește, desenează sau observă ce e în jurul tău.",color:"#8B7BA8"},
+    {icon:"✍️",title:"Jurnalizare",tip:"Scrie 3 lucruri pentru care ești recunoscător/oare. Practică mindfulness prin scris.",color:"#5B8A8A"},
+  ];
+  const avgMood=Array(7).fill(0).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return(data[d.toISOString().split("T")[0]]||{}).mood??null;}).filter(m=>m!==null);
+  const avg=avgMood.length?(avgMood.reduce((a,b)=>a+b,0)/avgMood.length).toFixed(1):null;
+  return(
+    <div className="anim-fade">
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:12}}>💚 Starea mea emoțională</div>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          {MOODS.map((m,i)=>(
+            <div key={i} style={{textAlign:"center"}}>
+              <button className={`mood-btn ${mood===i?"active":""}`} onClick={()=>setMood(i)} style={{width:48,height:48,fontSize:24}}>{m}</button>
+              <div style={{fontSize:9,color:"#8A8078",marginTop:3,fontFamily:"'Jost',sans-serif"}}>{MOOD_LABELS[i]}</div>
+            </div>
+          ))}
+        </div>
+        {avg&&<div style={{marginTop:12,padding:"9px 12px",background:"#EEF3F0",borderRadius:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#5B7060"}}>Media 7 zile:</span>
+          <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:"#7C9885"}}>{MOODS[Math.round(parseFloat(avg))]} {avg}/4</span>
+        </div>}
+      </div>
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:5}}>🙏 Recunoștință</div>
+        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:12,lineHeight:1.5}}>3 lucruri pentru care ești recunoscător/oare</div>
+        {gratitude.map((g,i)=>(
+          <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+            <span style={{fontSize:16}}>{"🌱🌿🌳"[i]}</span>
+            <input value={g} onChange={e=>{const ng=[...gratitude];ng[i]=e.target.value;setGratitude(ng);}} placeholder={`Lucrul ${i+1}...`}
+              style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:10,padding:"8px 12px",fontSize:13,background:"#F7F3EE"}}/>
+          </div>
+        ))}
+      </div>
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:5}}>✍️ Jurnal personal</div>
+        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:10}}>Cum a fost ziua ta?</div>
+        <textarea value={journal} onChange={e=>setJournal(e.target.value)} placeholder="Scrie liber, fără judecată..." rows={4}
+          style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:12,padding:"10px 12px",fontSize:14,background:"#F7F3EE",resize:"vertical",lineHeight:1.7,fontFamily:"'Georgia',serif"}}/>
+        <div style={{textAlign:"right",fontSize:10,color:"#B0A898",marginTop:5,fontFamily:"'Jost',sans-serif"}}>{journal.length} caractere</div>
+      </div>
+      <div className="card">
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:12}}>💡 Sfaturi</div>
+        {mentalTips.map((tip,i)=>(
+          <div key={i}>
+            <div onClick={()=>setShowTips(showTips===i?null:i)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 0",borderBottom:i<mentalTips.length-1?"1px solid #EDE8E0":"none",cursor:"pointer"}}>
+              <div style={{width:38,height:38,borderRadius:10,background:tip.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tip.icon}</div>
+              <div style={{flex:1,fontFamily:"'Jost',sans-serif",fontWeight:500,fontSize:13}}>{tip.title}</div>
+              <span style={{color:"#B0A898",fontSize:18,transition:"transform .2s",transform:showTips===i?"rotate(90deg)":"none"}}>›</span>
+            </div>
+            {showTips===i&&<div style={{padding:"9px 12px 11px 48px",fontFamily:"'Jost',sans-serif",fontSize:12,color:"#5B7060",lineHeight:1.6,background:"#EEF3F0",borderRadius:10,marginBottom:7}}>{tip.tip}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="card" style={{background:"#FFF8F0",border:"1.5px solid #F0D9C0",marginBottom:0}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,marginBottom:7,color:"#8A6040"}}>📞 Resurse de suport</div>
+        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#6A5040",lineHeight:1.9}}>
+          <div>🆘 Telefonul copilului: <strong>116 111</strong></div>
+          <div>💙 Antisuicid România: <strong>0800 801 200</strong></div>
+          <div>🤝 Alianța Sănătate Mentală: <strong>0800 800 100</strong></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+// Service Worker for PWA offline support
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    const sw = `
+      const CACHE='wellbeing-v1';
+      self.addEventListener('install',e=>{ self.skipWaiting(); });
+      self.addEventListener('activate',e=>{ self.clients.claim(); });
+      self.addEventListener('fetch',e=>{
+        if(e.request.method!=='GET') return;
+        e.respondWith(
+          caches.open(CACHE).then(cache=>
+            cache.match(e.request).then(cached=>{
+              const net=fetch(e.request).then(r=>{ cache.put(e.request,r.clone()); return r; }).catch(()=>cached);
+              return cached||net;
+            })
+          )
+        );
+      });
+    `;
+    const blob=new Blob([sw],{type:'application/javascript'});
+    const url=URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url).catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
