@@ -1,599 +1,133 @@
 <!DOCTYPE html>
-<html lang="ro">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#7C9885" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="WellBeing" />
-  <meta name="description" content="Aplicatia ta de well-being" />
-  <title>WellBeing 🌿</title>
-  <link rel="manifest" href="manifest.json" />
-  <!-- PWA icons inline via SVG data URIs -->
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%237C9885'/%3E%3Ctext x='256' y='340' text-anchor='middle' font-size='280' font-family='serif'%3E🌿%3C/text%3E%3C/svg%3E" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%237C9885'/%3E%3Ctext x='256' y='340' text-anchor='middle' font-size='280' font-family='serif'%3E🌿%3C/text%3E%3C/svg%3E" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: #F4F0EB; overflow: hidden; }
-    #root { height: 100%; }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: #C8B9A8; border-radius: 2px; }
-    /* Safe areas for notch phones */
-    .safe-top { padding-top: env(safe-area-inset-top, 0px); }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
-  </style>
-</head>
-<body>
-<div id="root"></div>
-
-<script type="text/babel">
-const { useState, useEffect, useRef } = React;
-
-const MOODS = ["😔","😐","🙂","😊","😁"];
-const MOOD_LABELS = ["Trist","Neutru","Bine","Fericit","Excelent"];
-const DAYS_RO = ["D","L","M","M","J","V","S"];
-const MONTHS_RO = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
-
-const MEDITATIONS = [
-  {id:1,title:"Respirație 4-7-8",duration:"5 min",desc:"Inspiră 4s, ține 7s, expiră 8s. Calmează sistemul nervos.",icon:"🌬️",color:"#7C9885"},
-  {id:2,title:"Body Scan",duration:"10 min",desc:"Scanează corpul de la cap la picioare, eliberând tensiunea.",icon:"🧘",color:"#8B7BA8"},
-  {id:3,title:"Mindfulness",duration:"7 min",desc:"Fii prezent în momentul actual, observând fără judecată.",icon:"🌿",color:"#5B8A8A"},
-  {id:4,title:"Vizualizare",duration:"12 min",desc:"Imaginează-ți un loc liniștit și sigur pentru tine.",icon:"☁️",color:"#8A7A6B"},
-];
-
-const AFFIRMATIONS = [
-  "Sunt capabil/ă de lucruri extraordinare.",
-  "Fiecare zi îmi aduce noi oportunități de creștere.",
-  "Mă iubesc și mă accept exact așa cum sunt.",
-  "Am puterea să depășesc orice obstacol.",
-  "Corpul meu este sănătos și plin de energie.",
-  "Mintea mea este clară și focusată.",
-  "Sunt recunoscător/oare pentru tot ce am.",
-];
-
-const FOOD_DB = [
-  {name:"Piept de pui 100g",cal:165,p:31,c:0,f:3.6},
-  {name:"Orez fiert 100g",cal:130,p:2.7,c:28,f:0.3},
-  {name:"Ou fiert",cal:68,p:6,c:0.6,f:4.8},
-  {name:"Banana medie",cal:89,p:1.1,c:23,f:0.3},
-  {name:"Iaurt grecesc 100g",cal:59,p:10,c:3.6,f:0.4},
-  {name:"Avocado 100g",cal:160,p:2,c:9,f:15},
-  {name:"Salată verde 100g",cal:15,p:1.4,c:2.9,f:0.2},
-  {name:"Somon 100g",cal:208,p:20,c:0,f:13},
-  {name:"Pâine integrală felie",cal:80,p:4,c:15,f:1.1},
-  {name:"Nuci 30g",cal:196,p:4.6,c:4.1,f:19.6},
-];
-
-const initialState = () => {
-  try { return JSON.parse(localStorage.getItem("wellbeing_data")||"{}"); }
-  catch { return {}; }
-};
-
-const CSS = `
-  .tab-btn{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;border-radius:12px;transition:all .2s;}
-  .tab-btn:hover{background:rgba(124,152,133,.1);}
-  .card{background:#FFFDF9;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 2px 16px rgba(0,0,0,.05);}
-  .btn-primary{background:#7C9885;color:white;border:none;border-radius:12px;padding:11px 22px;font-size:14px;cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;letter-spacing:.5px;transition:all .2s;}
-  .btn-primary:hover{background:#6A8A72;}
-  .btn-primary:active{transform:scale(.97);}
-  .btn-outline{background:transparent;color:#7C9885;border:1.5px solid #7C9885;border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .2s;}
-  .btn-outline:hover{background:#7C9885;color:white;}
-  input,textarea{font-family:'Jost',sans-serif;outline:none;}
-  .mood-btn{background:none;border:2px solid transparent;border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
-  .mood-btn.active{border-color:#7C9885;background:rgba(124,152,133,.1);transform:scale(1.1);}
-  .food-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;background:#F7F3EE;margin-bottom:6px;}
-  .cal-cell{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;cursor:pointer;font-family:'Jost',sans-serif;position:relative;transition:all .2s;flex-direction:column;gap:1px;}
-  .cal-cell:hover{background:rgba(124,152,133,.15);}
-  .cal-cell.today{background:#7C9885;color:white;font-weight:600;}
-  .cal-cell.selected{outline:2px solid #7C9885;}
-  .anim-fade{animation:fadeIn .35s ease;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes breathIn{from{transform:scale(.7)}to{transform:scale(1.3)}}
-  @keyframes breathOut{from{transform:scale(1.3)}to{transform:scale(.7)}}
-  .breath-circle{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-`;
-
-function App() {
-  const [tab, setTab] = useState("home");
-  const [data, setData] = useState(initialState);
-  const [today] = useState(()=>new Date().toISOString().split("T")[0]);
-  const [calDate, setCalDate] = useState(new Date());
-  const [meditating, setMeditating] = useState(null);
-  const [meditTimer, setMeditTimer] = useState(0);
-  const [meditRunning, setMeditRunning] = useState(false);
-  const [affirmIdx, setAffirmIdx] = useState(()=>Math.floor(Math.random()*AFFIRMATIONS.length));
-  const [foodSearch, setFoodSearch] = useState("");
-  const [breathPhase, setBreathPhase] = useState("idle");
-  const [breathCount, setBreathCount] = useState(0);
-  const breathRef = useRef(null);
-  const timerRef = useRef(null);
-
-  const save = (nd) => { setData(nd); localStorage.setItem("wellbeing_data",JSON.stringify(nd)); };
-  const todayData = () => data[today]||{};
-  const setTodayKey = (key,val) => save({...data,[today]:{...todayData(),[key]:val}});
-
-  const meals = todayData().meals||[];
-  const totalCal = meals.reduce((s,m)=>s+m.cal,0);
-  const totalP = meals.reduce((s,m)=>s+m.p,0);
-  const totalC = meals.reduce((s,m)=>s+m.c,0);
-  const totalF = meals.reduce((s,m)=>s+m.f,0);
-  const calGoal = todayData().calGoal||2000;
-  const addMeal = (food) => { setTodayKey("meals",[...meals,food]); setFoodSearch(""); };
-  const removeMeal = (i) => setTodayKey("meals",meals.filter((_,idx)=>idx!==i));
-
-  const water = todayData().water||0;
-  const addWater = () => setTodayKey("water",Math.min(water+1,10));
-
-  const mood = todayData().mood;
-  const setMood = (m) => setTodayKey("mood",m);
-  const journal = todayData().journal||"";
-  const setJournal = (j) => setTodayKey("journal",j);
-  const steps = todayData().steps||0;
-  const setSteps = (s) => setTodayKey("steps",parseInt(s)||0);
-  const sleep = todayData().sleep||0;
-  const setSleep = (s) => setTodayKey("sleep",parseFloat(s)||0);
-
-  const dateKey = calDate.toISOString().split("T")[0];
-  const events = (data[dateKey]||{}).events||[];
-  const [newEvent, setNewEvent] = useState("");
-  const addEvent = () => {
-    if(!newEvent.trim()) return;
-    save({...data,[dateKey]:{...(data[dateKey]||{}),events:[...events,newEvent.trim()]}});
-    setNewEvent("");
-  };
-
-  useEffect(()=>{
-    if(meditRunning && meditTimer>0){ timerRef.current=setTimeout(()=>setMeditTimer(t=>t-1),1000); }
-    else if(meditTimer===0 && meditRunning){ setMeditRunning(false); setTodayKey("meditDone",(todayData().meditDone||0)+1); }
-    return ()=>clearTimeout(timerRef.current);
-  },[meditRunning,meditTimer]);
-
-  const startMedit = (m) => { setMeditating(m); setMeditTimer(parseInt(m.duration)*60); setMeditRunning(false); };
-  const fmtTime = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-
-  const startBreath = () => {
-    setBreathPhase("inhale"); setBreathCount(0);
-    let count=0;
-    const cycle = () => {
-      setBreathPhase("inhale");
-      setTimeout(()=>setBreathPhase("hold"),4000);
-      setTimeout(()=>{ setBreathPhase("exhale"); count++; setBreathCount(count); },11000);
-      setTimeout(()=>{ if(count<4){cycle();}else{setBreathPhase("done");} },19000);
-    };
-    breathRef.current=setTimeout(cycle,0);
-  };
-  const stopBreath = () => { clearTimeout(breathRef.current); setBreathPhase("idle"); };
-
-  const getDaysInMonth = () => {
-    const y=calDate.getFullYear(),m=calDate.getMonth();
-    return { first:new Date(y,m,1).getDay(), days:new Date(y,m+1,0).getDate() };
-  };
-  const {first,days} = getDaysInMonth();
-  const calCells = Array(first).fill(null).concat(Array.from({length:days},(_,i)=>i+1));
-  const todayNum = new Date().getDate();
-  const isThisMonth = calDate.getMonth()===new Date().getMonth()&&calDate.getFullYear()===new Date().getFullYear();
-  const hasEvents = (d) => { if(!d)return false; const k=new Date(calDate.getFullYear(),calDate.getMonth(),d).toISOString().split("T")[0]; return ((data[k]||{}).events||[]).length>0; };
-  const hasMood = (d) => { if(!d)return null; const k=new Date(calDate.getFullYear(),calDate.getMonth(),d).toISOString().split("T")[0]; return (data[k]||{}).mood??null; };
-  const filteredFoods = FOOD_DB.filter(f=>f.name.toLowerCase().includes(foodSearch.toLowerCase()));
-  const wellScore = () => {
-    let s=0;
-    if(mood!==undefined)s+=20; if(water>=6)s+=20; if(steps>=8000)s+=20; if(sleep>=7)s+=20; if((todayData().meditDone||0)>0)s+=20;
-    return s;
-  };
-
-  const tabs=[{id:"home",icon:"🏠",label:"Acasă"},{id:"calendar",icon:"📅",label:"Calendar"},{id:"calories",icon:"🥗",label:"Calorii"},{id:"meditation",icon:"🧘",label:"Meditație"},{id:"mental",icon:"💚",label:"Mental"}];
-
-  return (
-    <div style={{height:"100%",display:"flex",flexDirection:"column",background:"#F4F0EB",fontFamily:"'Georgia','Times New Roman',serif",color:"#2C2C2C",maxWidth:480,margin:"0 auto",position:"relative",boxShadow:"0 0 60px rgba(0,0,0,.08)"}}>
-      <style>{CSS}</style>
-
-      {/* Header */}
-      <div className="safe-top" style={{padding:"16px 24px 12px",background:"#FFFDF9",borderBottom:"1px solid #EDE8E0",flexShrink:0}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,letterSpacing:.5}}>Bine ai venit 🌿</div>
-        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginTop:2}}>{new Date().toLocaleDateString("ro-RO",{weekday:"long",day:"numeric",month:"long"})}</div>
-      </div>
-
-      {/* Content */}
-      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 0",WebkitOverflowScrolling:"touch"}}>
-        {tab==="home"&&<HomeTab wellScore={wellScore} mood={mood} setMood={setMood} water={water} addWater={addWater} steps={steps} setSteps={setSteps} sleep={sleep} setSleep={setSleep} totalCal={totalCal} calGoal={calGoal} affirmIdx={affirmIdx} setAffirmIdx={setAffirmIdx} meditDone={todayData().meditDone||0}/>}
-        {tab==="calendar"&&<CalendarTab calDate={calDate} setCalDate={setCalDate} calCells={calCells} hasEvents={hasEvents} hasMood={hasMood} todayNum={todayNum} isThisMonth={isThisMonth} dateKey={dateKey} events={events} newEvent={newEvent} setNewEvent={setNewEvent} addEvent={addEvent} data={data}/>}
-        {tab==="calories"&&<CaloriesTab meals={meals} removeMeal={removeMeal} totalCal={totalCal} totalP={totalP} totalC={totalC} totalF={totalF} calGoal={calGoal} setCalGoal={(v)=>setTodayKey("calGoal",v)} foodSearch={foodSearch} setFoodSearch={setFoodSearch} filteredFoods={filteredFoods} addMeal={addMeal}/>}
-        {tab==="meditation"&&<MeditationTab meditating={meditating} setMeditating={setMeditating} meditTimer={meditTimer} setMeditTimer={setMeditTimer} meditRunning={meditRunning} setMeditRunning={setMeditRunning} startMedit={startMedit} fmtTime={fmtTime} breathPhase={breathPhase} breathCount={breathCount} startBreath={startBreath} stopBreath={stopBreath} meditDone={todayData().meditDone||0}/>}
-        {tab==="mental"&&<MentalTab mood={mood} setMood={setMood} journal={journal} setJournal={setJournal} data={data}/>}
-        <div style={{height:80}}/>
-      </div>
-
-      {/* Bottom Nav */}
-      <div className="safe-bottom" style={{background:"#FFFDF9",borderTop:"1px solid #EDE8E0",display:"flex",justifyContent:"space-around",padding:"10px 0 4px",flexShrink:0,zIndex:100}}>
-        {tabs.map(t=>(
-          <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)} style={{opacity:tab===t.id?1:.45}}>
-            <span style={{fontSize:22}}>{t.icon}</span>
-            <span style={{fontSize:10,fontFamily:"'Jost',sans-serif",fontWeight:tab===t.id?500:400,color:tab===t.id?"#7C9885":"#8A8078"}}>{t.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HomeTab({wellScore,mood,setMood,water,addWater,steps,setSteps,sleep,setSleep,totalCal,calGoal,affirmIdx,setAffirmIdx,meditDone}){
-  const score=wellScore();
-  return(
-    <div className="anim-fade">
-      <div className="card" style={{textAlign:"center",background:"linear-gradient(135deg,#7C9885 0%,#5B8A8A 100%)",color:"white"}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,opacity:.85,marginBottom:4}}>Scorul tău de azi</div>
-        <div style={{fontSize:56,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",lineHeight:1}}>{score}</div>
-        <div style={{fontSize:12,opacity:.75,fontFamily:"'Jost',sans-serif",marginTop:2}}>din 100 puncte</div>
-        <div style={{display:"flex",justifyContent:"space-around",marginTop:14,borderTop:"1px solid rgba(255,255,255,.2)",paddingTop:12}}>
-          {[{icon:"💧",val:`${water}/8`,label:"Apă"},{icon:"👣",val:steps>=1000?`${(steps/1000).toFixed(1)}k`:steps,label:"Pași"},{icon:"😴",val:`${sleep}h`,label:"Somn"},{icon:"🧘",val:meditDone,label:"Medit."}].map(s=>(
-            <div key={s.label} style={{textAlign:"center"}}>
-              <div style={{fontSize:18}}>{s.icon}</div>
-              <div style={{fontSize:13,fontWeight:600,fontFamily:"'Jost',sans-serif"}}>{s.val}</div>
-              <div style={{fontSize:9,opacity:.75,fontFamily:"'Jost',sans-serif"}}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="card" style={{background:"#EEF3F0",border:"1.5px solid #C8D9CC"}}>
-        <div style={{fontSize:10,fontFamily:"'Jost',sans-serif",color:"#7C9885",fontWeight:500,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Afirmația zilei</div>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,color:"#2C2C2C",lineHeight:1.5,fontStyle:"italic"}}>"{AFFIRMATIONS[affirmIdx]}"</div>
-        <button className="btn-outline" style={{marginTop:10,fontSize:12}} onClick={()=>setAffirmIdx((affirmIdx+1)%AFFIRMATIONS.length)}>Altă afirmație ✨</button>
-      </div>
-
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>Cum te simți azi?</div>
-        <div style={{display:"flex",justifyContent:"space-between"}}>
-          {MOODS.map((m,i)=>(
-            <div key={i} style={{textAlign:"center"}}>
-              <button className={`mood-btn ${mood===i?"active":""}`} onClick={()=>setMood(i)}>{m}</button>
-              <div style={{fontSize:9,color:"#8A8078",marginTop:3,fontFamily:"'Jost',sans-serif"}}>{MOOD_LABELS[i]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600}}>Hidratare</div>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#7C9885"}}>{water}/8 pahare</div>
-        </div>
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
-          {Array(8).fill(0).map((_,i)=>(<span key={i} style={{fontSize:22,opacity:i<water?1:.2,transition:"all .3s"}}>💧</span>))}
-        </div>
-        <button className="btn-primary" style={{width:"100%"}} onClick={addWater}>+ Adaugă un pahar</button>
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[{label:"👣 Pași",val:steps,set:setSteps,goal:8000,unit:"",color:"#C4A26B"},{label:"😴 Somn",val:sleep,set:setSleep,goal:8,unit:"h",color:"#8B7BA8",step:"0.5"}].map(item=>(
-          <div key={item.label} className="card" style={{margin:0}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,marginBottom:8}}>{item.label}</div>
-            <input type="number" step={item.step||1} value={item.val||""} onChange={e=>item.set(e.target.value)} placeholder="0"
-              style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:10,padding:"7px",fontSize:20,fontWeight:700,color:"#7C9885",background:"#F7F3EE",textAlign:"center"}}/>
-            <div style={{fontSize:9,color:"#8A8078",marginTop:5,fontFamily:"'Jost',sans-serif",textAlign:"center"}}>Obiectiv: {item.goal}{item.unit}</div>
-            <div style={{marginTop:7,height:5,background:"#E8E0D5",borderRadius:3,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${Math.min((item.val/item.goal)*100,100)}%`,background:item.val>=item.goal?"#7C9885":item.color,borderRadius:3,transition:"width .5s"}}/>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card" style={{marginTop:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600}}>🥗 Calorii azi</div>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:totalCal>calGoal?"#C47B6B":"#7C9885"}}>{totalCal}/{calGoal} kcal</div>
-        </div>
-        <div style={{height:7,background:"#E8E0D5",borderRadius:4,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${Math.min((totalCal/calGoal)*100,100)}%`,background:totalCal>calGoal?"#C47B6B":"#7C9885",borderRadius:4,transition:"width .5s"}}/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CalendarTab({calDate,setCalDate,calCells,hasEvents,hasMood,todayNum,isThisMonth,dateKey,events,newEvent,setNewEvent,addEvent,data}){
-  const selectDay=(d)=>{ if(!d)return; setCalDate(new Date(calDate.getFullYear(),calDate.getMonth(),d)); };
-  return(
-    <div className="anim-fade">
-      <div className="card">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <button onClick={()=>setCalDate(new Date(calDate.getFullYear(),calDate.getMonth()-1,1))} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#7C9885",padding:"4px 10px"}}>‹</button>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700}}>{MONTHS_RO[calDate.getMonth()]} {calDate.getFullYear()}</div>
-          <button onClick={()=>setCalDate(new Date(calDate.getFullYear(),calDate.getMonth()+1,1))} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#7C9885",padding:"4px 10px"}}>›</button>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
-          {DAYS_RO.map((d,i)=>(<div key={i} style={{textAlign:"center",fontFamily:"'Jost',sans-serif",fontSize:10,color:"#8A8078",fontWeight:500,padding:"3px 0"}}>{d}</div>))}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-          {calCells.map((d,i)=>{
-            const isToday=isThisMonth&&d===todayNum;
-            const isSelected=d===calDate.getDate()&&!isToday;
-            const moodOfDay=hasMood(d);
-            const hasEv=hasEvents(d);
-            return(
-              <div key={i} className={`cal-cell ${isToday?"today":""} ${isSelected?"selected":""}`} onClick={()=>selectDay(d)}>
-                {d&&<>
-                  <span style={{fontSize:11}}>{d}</span>
-                  {moodOfDay!==null&&<span style={{fontSize:8}}>{MOODS[moodOfDay]}</span>}
-                  {hasEv&&<span style={{width:3,height:3,borderRadius:"50%",background:isToday?"white":"#7C9885",display:"block"}}/>}
-                </>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>📌 {calDate.toLocaleDateString("ro-RO",{day:"numeric",month:"long"})}</div>
-        {events.length===0&&<div style={{color:"#B0A898",fontFamily:"'Jost',sans-serif",fontSize:13,fontStyle:"italic",marginBottom:10}}>Nicio activitate planificată</div>}
-        {events.map((ev,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"#EEF3F0",borderRadius:10,marginBottom:7}}>
-            <span style={{fontSize:14}}>📍</span>
-            <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,flex:1}}>{ev}</span>
-          </div>
-        ))}
-        <div style={{display:"flex",gap:8,marginTop:6}}>
-          <input value={newEvent} onChange={e=>setNewEvent(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addEvent()} placeholder="Adaugă activitate..."
-            style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:10,padding:"9px 12px",fontSize:14,background:"#F7F3EE"}}/>
-          <button className="btn-primary" onClick={addEvent} style={{padding:"9px 16px"}}>+</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:12}}>📊 Dispoziție — 7 zile</div>
-        <div style={{display:"flex",alignItems:"flex-end",gap:5,height:70}}>
-          {Array(7).fill(0).map((_,i)=>{
-            const d=new Date(); d.setDate(d.getDate()-6+i);
-            const k=d.toISOString().split("T")[0];
-            const m=(data[k]||{}).mood;
-            return(
-              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <span style={{fontSize:12}}>{m!==undefined?MOODS[m]:"·"}</span>
-                <div style={{width:"100%",background:m!==undefined?"#7C9885":"#E8E0D5",borderRadius:4,height:m!==undefined?`${((m+1)/5)*40+8}px`:"8px",transition:"height .4s"}}/>
-                <span style={{fontSize:8,fontFamily:"'Jost',sans-serif",color:"#8A8078"}}>{DAYS_RO[d.getDay()]}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CaloriesTab({meals,removeMeal,totalCal,totalP,totalC,totalF,calGoal,setCalGoal,foodSearch,setFoodSearch,filteredFoods,addMeal}){
-  const pct=Math.min((totalCal/calGoal)*100,100);
-  const remaining=calGoal-totalCal;
-  return(
-    <div className="anim-fade">
-      <div className="card" style={{textAlign:"center"}}>
-        <svg width="150" height="150" style={{display:"block",margin:"0 auto 10px"}}>
-          <circle cx="75" cy="75" r="62" fill="none" stroke="#E8E0D5" strokeWidth="11"/>
-          <circle cx="75" cy="75" r="62" fill="none" stroke={totalCal>calGoal?"#C47B6B":"#7C9885"} strokeWidth="11" strokeLinecap="round"
-            strokeDasharray={`${2*Math.PI*62}`} strokeDashoffset={`${2*Math.PI*62*(1-pct/100)}`} transform="rotate(-90 75 75)" style={{transition:"stroke-dashoffset .7s ease"}}/>
-          <text x="75" y="68" textAnchor="middle" fontSize="26" fontFamily="'Cormorant Garamond',serif" fontWeight="700" fill="#2C2C2C">{totalCal}</text>
-          <text x="75" y="84" textAnchor="middle" fontSize="11" fontFamily="'Jost',sans-serif" fill="#8A8078">kcal</text>
-          <text x="75" y="100" textAnchor="middle" fontSize="10" fontFamily="'Jost',sans-serif" fill={remaining<0?"#C47B6B":"#7C9885"}>{remaining<0?`+${Math.abs(remaining)} depășit`:`${remaining} rămase`}</text>
-        </svg>
-        <div style={{display:"flex",justifyContent:"space-around",marginBottom:12}}>
-          {[{label:"Proteine",val:totalP.toFixed(0),color:"#7C9885"},{label:"Carbohidrați",val:totalC.toFixed(0),color:"#C4A26B"},{label:"Grăsimi",val:totalF.toFixed(0),color:"#8B7BA8"}].map(m=>(
-            <div key={m.label} style={{textAlign:"center"}}>
-              <div style={{fontSize:17,fontWeight:700,fontFamily:"'Cormorant Garamond',serif",color:m.color}}>{m.val}g</div>
-              <div style={{fontSize:9,color:"#8A8078",fontFamily:"'Jost',sans-serif"}}>{m.label}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:11,fontFamily:"'Jost',sans-serif",color:"#8A8078",whiteSpace:"nowrap"}}>Obiectiv:</span>
-          <input type="number" value={calGoal} onChange={e=>setCalGoal(parseInt(e.target.value)||2000)}
-            style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:8,padding:"5px",fontSize:14,textAlign:"center",background:"#F7F3EE"}}/>
-          <span style={{fontSize:11,fontFamily:"'Jost',sans-serif",color:"#8A8078"}}>kcal</span>
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>🍽️ Adaugă aliment</div>
-        <input value={foodSearch} onChange={e=>setFoodSearch(e.target.value)} placeholder="Caută aliment..."
-          style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:10,padding:"9px 12px",fontSize:14,background:"#F7F3EE",marginBottom:8}}/>
-        <div style={{maxHeight:200,overflowY:"auto"}}>
-          {filteredFoods.map((f,i)=>(
-            <div key={i} className="food-item">
-              <div>
-                <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:500}}>{f.name}</div>
-                <div style={{fontSize:10,color:"#8A8078",fontFamily:"'Jost',sans-serif"}}>P:{f.p}g C:{f.c}g G:{f.f}g</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:7}}>
-                <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:15,color:"#7C9885"}}>{f.cal}</span>
-                <button className="btn-primary" style={{padding:"5px 11px",fontSize:13}} onClick={()=>addMeal(f)}>+</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {meals.length>0&&(
-        <div className="card">
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:600,marginBottom:10}}>📋 Jurnal</div>
-          {meals.map((m,i)=>(
-            <div key={i} className="food-item">
-              <div style={{fontFamily:"'Jost',sans-serif",fontSize:13}}>{m.name}</div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:"#7C9885"}}>{m.cal} kcal</span>
-                <button onClick={()=>removeMeal(i)} style={{background:"none",border:"none",color:"#C47B6B",cursor:"pointer",fontSize:18}}>×</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MeditationTab({meditating,setMeditating,meditTimer,setMeditTimer,meditRunning,setMeditRunning,startMedit,fmtTime,breathPhase,breathCount,startBreath,stopBreath,meditDone}){
-  const breathConfig={
-    idle:{scale:.85,bg:"radial-gradient(circle,#C8D9CC,#A8C4B0)",text:"Apasă Start",sub:"4-7-8 respirație"},
-    inhale:{scale:1.3,bg:"radial-gradient(circle,#7C9885,#5B8A8A)",text:"Inspiră...",sub:"4 secunde"},
-    hold:{scale:1.3,bg:"radial-gradient(circle,#5B8A8A,#4A7A7A)",text:"Ține...",sub:"7 secunde"},
-    exhale:{scale:.75,bg:"radial-gradient(circle,#8B7BA8,#7A6A9A)",text:"Expiră...",sub:"8 secunde"},
-    done:{scale:.85,bg:"radial-gradient(circle,#7C9885,#5B8A8A)",text:"✓ Gata!",sub:`${breathCount} cicluri`},
-  };
-  const bc=breathConfig[breathPhase];
-  return(
-    <div className="anim-fade">
-      {meditating?(
-        <div className="card" style={{textAlign:"center"}}>
-          <button onClick={()=>{setMeditating(null);setMeditRunning(false);}} style={{background:"none",border:"none",color:"#7C9885",cursor:"pointer",fontFamily:"'Jost',sans-serif",fontSize:13,marginBottom:14,display:"flex",alignItems:"center",gap:4}}>← Înapoi</button>
-          <div style={{fontSize:38,marginBottom:7}}>{meditating.icon}</div>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:21,fontWeight:700,marginBottom:4}}>{meditating.title}</div>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:20,lineHeight:1.6}}>{meditating.desc}</div>
-          <div style={{fontSize:54,fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:meditating.color,marginBottom:20,letterSpacing:-2}}>{fmtTime(meditTimer)}</div>
-          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-            <button className="btn-primary" style={{background:meditating.color}} onClick={()=>setMeditRunning(r=>!r)}>{meditRunning?"⏸ Pauză":"▶ Start"}</button>
-            <button className="btn-outline" onClick={()=>{setMeditating(null);setMeditRunning(false);}}>Oprește</button>
-          </div>
-          {meditTimer===0&&<div style={{marginTop:18,fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:"#7C9885"}}>🎉 Sesiune completată!</div>}
-        </div>
-      ):(
-        <>
-          <div className="card" style={{textAlign:"center"}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:600,marginBottom:3}}>Sesiuni completate azi</div>
-            <div style={{fontSize:46,fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:"#7C9885"}}>{meditDone}</div>
-          </div>
-          <div className="card">
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:14}}>🌿 Meditații ghidate</div>
-            {MEDITATIONS.map(m=>(
-              <div key={m.id} onClick={()=>startMedit(m)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px",background:"#F7F3EE",borderRadius:13,marginBottom:9,cursor:"pointer",border:"1.5px solid transparent",transition:"border-color .2s"}}
-                onTouchStart={e=>e.currentTarget.style.borderColor=m.color} onTouchEnd={e=>e.currentTarget.style.borderColor="transparent"}>
-                <div style={{width:44,height:44,borderRadius:12,background:m.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{m.icon}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:600,fontSize:15}}>{m.title}</div>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:"#8A8078",marginTop:2}}>{m.desc}</div>
-                </div>
-                <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:m.color,fontWeight:600,flexShrink:0}}>{m.duration}</div>
-              </div>
-            ))}
-          </div>
-          <div className="card" style={{textAlign:"center"}}>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:18}}>🌬️ Respirație conștientă</div>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-              <div className="breath-circle" style={{background:bc.bg,transform:`scale(${bc.scale})`,transition:breathPhase==="inhale"?"transform 4s ease-in-out,background 1s":breathPhase==="exhale"?"transform 8s ease-in-out,background 1s":"transform .5s,background 1s"}}>
-                <div>
-                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,color:"white"}}>{bc.text}</div>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:10,color:"rgba(255,255,255,.8)",marginTop:3}}>{bc.sub}</div>
-                </div>
-              </div>
-            </div>
-            {breathPhase==="idle"||breathPhase==="done"
-              ?<button className="btn-primary" onClick={startBreath}>{breathPhase==="done"?"Repetă":"Începe exercițiul"}</button>
-              :<button className="btn-outline" onClick={stopBreath}>Oprește</button>}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function MentalTab({mood,setMood,journal,setJournal,data}){
-  const [gratitude,setGratitude]=useState(["","",""]);
-  const [showTips,setShowTips]=useState(null);
-  const mentalTips=[
-    {icon:"🤗",title:"Conexiune socială",tip:"Petrece 15 minute vorbind cu cineva drag. Conexiunile umane sunt esențiale pentru sănătatea mentală.",color:"#C4A26B"},
-    {icon:"🌳",title:"Timp în natură",tip:"O plimbare de 20 min în natură reduce cortizolul cu 21% și îmbunătățește dispoziția.",color:"#7C9885"},
-    {icon:"📵",title:"Detox digital",tip:"Ia o pauză de 1 oră de la ecrane. Citește, desenează sau observă ce e în jurul tău.",color:"#8B7BA8"},
-    {icon:"✍️",title:"Jurnalizare",tip:"Scrie 3 lucruri pentru care ești recunoscător/oare. Practică mindfulness prin scris.",color:"#5B8A8A"},
-  ];
-  const avgMood=Array(7).fill(0).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return(data[d.toISOString().split("T")[0]]||{}).mood??null;}).filter(m=>m!==null);
-  const avg=avgMood.length?(avgMood.reduce((a,b)=>a+b,0)/avgMood.length).toFixed(1):null;
-  return(
-    <div className="anim-fade">
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:12}}>💚 Starea mea emoțională</div>
-        <div style={{display:"flex",justifyContent:"space-between"}}>
-          {MOODS.map((m,i)=>(
-            <div key={i} style={{textAlign:"center"}}>
-              <button className={`mood-btn ${mood===i?"active":""}`} onClick={()=>setMood(i)} style={{width:48,height:48,fontSize:24}}>{m}</button>
-              <div style={{fontSize:9,color:"#8A8078",marginTop:3,fontFamily:"'Jost',sans-serif"}}>{MOOD_LABELS[i]}</div>
-            </div>
-          ))}
-        </div>
-        {avg&&<div style={{marginTop:12,padding:"9px 12px",background:"#EEF3F0",borderRadius:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#5B7060"}}>Media 7 zile:</span>
-          <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:"#7C9885"}}>{MOODS[Math.round(parseFloat(avg))]} {avg}/4</span>
-        </div>}
-      </div>
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:5}}>🙏 Recunoștință</div>
-        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:12,lineHeight:1.5}}>3 lucruri pentru care ești recunoscător/oare</div>
-        {gratitude.map((g,i)=>(
-          <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
-            <span style={{fontSize:16}}>{"🌱🌿🌳"[i]}</span>
-            <input value={g} onChange={e=>{const ng=[...gratitude];ng[i]=e.target.value;setGratitude(ng);}} placeholder={`Lucrul ${i+1}...`}
-              style={{flex:1,border:"1.5px solid #E8E0D5",borderRadius:10,padding:"8px 12px",fontSize:13,background:"#F7F3EE"}}/>
-          </div>
-        ))}
-      </div>
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:5}}>✍️ Jurnal personal</div>
-        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#8A8078",marginBottom:10}}>Cum a fost ziua ta?</div>
-        <textarea value={journal} onChange={e=>setJournal(e.target.value)} placeholder="Scrie liber, fără judecată..." rows={4}
-          style={{width:"100%",border:"1.5px solid #E8E0D5",borderRadius:12,padding:"10px 12px",fontSize:14,background:"#F7F3EE",resize:"vertical",lineHeight:1.7,fontFamily:"'Georgia',serif"}}/>
-        <div style={{textAlign:"right",fontSize:10,color:"#B0A898",marginTop:5,fontFamily:"'Jost',sans-serif"}}>{journal.length} caractere</div>
-      </div>
-      <div className="card">
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:600,marginBottom:12}}>💡 Sfaturi</div>
-        {mentalTips.map((tip,i)=>(
-          <div key={i}>
-            <div onClick={()=>setShowTips(showTips===i?null:i)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 0",borderBottom:i<mentalTips.length-1?"1px solid #EDE8E0":"none",cursor:"pointer"}}>
-              <div style={{width:38,height:38,borderRadius:10,background:tip.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tip.icon}</div>
-              <div style={{flex:1,fontFamily:"'Jost',sans-serif",fontWeight:500,fontSize:13}}>{tip.title}</div>
-              <span style={{color:"#B0A898",fontSize:18,transition:"transform .2s",transform:showTips===i?"rotate(90deg)":"none"}}>›</span>
-            </div>
-            {showTips===i&&<div style={{padding:"9px 12px 11px 48px",fontFamily:"'Jost',sans-serif",fontSize:12,color:"#5B7060",lineHeight:1.6,background:"#EEF3F0",borderRadius:10,marginBottom:7}}>{tip.tip}</div>}
-          </div>
-        ))}
-      </div>
-      <div className="card" style={{background:"#FFF8F0",border:"1.5px solid #F0D9C0",marginBottom:0}}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:600,marginBottom:7,color:"#8A6040"}}>📞 Resurse de suport</div>
-        <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:"#6A5040",lineHeight:1.9}}>
-          <div>🆘 Telefonul copilului: <strong>116 111</strong></div>
-          <div>💙 Antisuicid România: <strong>0800 801 200</strong></div>
-          <div>🤝 Alianța Sănătate Mentală: <strong>0800 800 100</strong></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-
-// Service Worker for PWA offline support
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    const sw = `
-      const CACHE='wellbeing-v1';
-      self.addEventListener('install',e=>{ self.skipWaiting(); });
-      self.addEventListener('activate',e=>{ self.clients.claim(); });
-      self.addEventListener('fetch',e=>{
-        if(e.request.method!=='GET') return;
-        e.respondWith(
-          caches.open(CACHE).then(cache=>
-            cache.match(e.request).then(cached=>{
-              const net=fetch(e.request).then(r=>{ cache.put(e.request,r.clone()); return r; }).catch(()=>cached);
-              return cached||net;
-            })
-          )
-        );
-      });
-    `;
-    const blob=new Blob([sw],{type:'application/javascript'});
-    const url=URL.createObjectURL(blob);
-    navigator.serviceWorker.register(url).catch(()=>{});
-  });
-}
-</script>
-</body>
-</html>
+<html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#7C9885"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="VitaSphere"><meta name="description" content="Aplicația ta de well-being"><title>VitaSphere 🌿</title><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F5F1EA;--card:#FFFDF9;--ink:#26302B;--mut:#8A8078;--g:#7C9885;--line:#EAE3D8;--soft:#F1ECE3;--gold:#C9A25E}
+[data-t=dark]{--bg:#121815;--card:#1C2520;--ink:#ECEFEA;--mut:#93A097;--line:#2A352F;--soft:#243029}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--ink);font:400 15px Jost,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+#app{height:100dvh;max-width:480px;margin:auto;display:flex;flex-direction:column;position:relative}
+#hd{display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 8px}
+#hd>.hb{display:flex;align-items:center}
+h1,h2,.big{font-family:'Cormorant Garamond',serif;font-weight:700}
+h1{font-size:22px;line-height:1.1}h2{font-size:19px;margin-bottom:8px}
+small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+#v{flex:1;overflow-y:auto;padding:6px 16px 120px}
+.card{background:var(--card);border-radius:22px;padding:18px;margin-bottom:14px;box-shadow:0 6px 24px rgba(40,60,50,.07);animation:up .4s both}
+@keyframes up{from{opacity:0;transform:translateY(10px)}}
+.c{text-align:center}
+.hero{background:linear-gradient(145deg,#7C9885,#4F8484);color:#fff;text-align:center}
+.hero small{color:rgba(255,255,255,.8)}
+.st{display:flex;justify-content:space-around;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.b{background:var(--g);color:#fff;border-radius:14px;padding:12px 22px;font-weight:500;transition:.2s}
+.b:active{transform:scale(.96)}
+.b.o{background:none;color:var(--g);border:1.5px solid var(--g)}
+.b.sm{padding:6px 14px;font-size:13px}
+input,textarea{width:100%;font:16px Jost,sans-serif;color:var(--ink);background:var(--soft);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;outline:0}
+input:focus,textarea:focus{border-color:var(--g)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--soft);border-radius:12px;margin-top:7px}
+.kc{font:700 17px 'Cormorant Garamond',serif;color:var(--g)}
+.mo{display:flex;justify-content:space-between}
+.mo button{font-size:26px;width:50px;height:50px;border-radius:50%;border:2px solid transparent;transition:.2s}
+.mo .on{border-color:var(--g);background:rgba(124,152,133,.15);transform:scale(1.1)}
+.dr{display:flex;gap:4px;margin-bottom:6px}.dr button{font-size:24px;opacity:.2;transition:.2s}.dr .on{opacity:1}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--g);transition:width .5s}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cc{height:44px;border-radius:12px;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.cc small{font-size:9px;margin:0}.cc u{position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--g)}
+.cc.td{background:var(--g);color:#fff}.cc.td u{background:#fff}.cc.sl{outline:2px solid var(--g)}
+.ch{display:flex;align-items:flex-end;gap:5px;min-height:90px}.ch>div{flex:1;text-align:center;font-size:11px}.ch i{display:block;background:var(--g);border-radius:4px;margin:3px 0}
+.pill{background:var(--soft);padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600}.pill.gold{background:var(--gold);color:#fff}
+.ic{font-size:20px;margin-left:8px}
+.lk{border:1.5px dashed var(--gold);cursor:pointer}
+nav{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;justify-content:space-around;padding:8px;border-radius:28px;background:color-mix(in srgb,var(--card) 85%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 32px rgba(0,0,0,.14)}
+.nb{display:flex;flex-direction:column;align-items:center;padding:6px 12px;border-radius:18px;font-size:10px;color:var(--mut);transition:.2s}.nb span{font-size:20px}.nb.on{background:rgba(124,152,133,.18);color:var(--g);font-weight:600}
+.bc{width:150px;height:150px;border-radius:50%;margin:8px auto 18px;display:flex;align-items:center;justify-content:center;color:#fff;background:radial-gradient(circle,#7C9885,#4F8484);transform:scale(.9);transition:transform .6s}
+.bc small{color:rgba(255,255,255,.85)}.bc.in{transform:scale(1.25);transition:transform 4s ease-in-out}.bc.hold{transform:scale(1.25)}.bc.out{transform:scale(.8);transition:transform 8s ease-in-out}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9;animation:fi .2s}
+@keyframes fi{from{opacity:0}}
+.sh{background:var(--card);width:100%;max-width:480px;max-height:90dvh;overflow-y:auto;border-radius:26px 26px 0 0;padding:22px 18px calc(env(safe-area-inset-bottom,0px) + 20px);animation:up .3s}
+.seg{display:flex;background:var(--soft);border-radius:14px;padding:4px;margin:12px 0}.seg button{flex:1;padding:8px;border-radius:11px;font-size:13px}.seg .on{background:var(--card);font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.pl{border:1.5px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px;position:relative}.pl.hot{border-color:var(--gold);box-shadow:0 6px 22px rgba(201,162,94,.25)}
+.pl em{position:absolute;top:-10px;right:14px;background:var(--gold);color:#fff;font-size:11px;font-style:normal;padding:2px 10px;border-radius:10px}
+.pl ul{list-style:none;margin:6px 0 12px;font-size:13px}.pl li:before{content:'✓ ';color:var(--g);font-weight:700}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head>
+<body><div id="app"><div id="hd"></div><div id="v"></div>
+<nav><button class="nb" data-a="tab" data-v="home"><span>🏠</span>Acasă</button><button class="nb" data-a="tab" data-v="cal"><span>📅</span>Calendar</button><button class="nb" data-a="tab" data-v="food"><span>🥗</span>Calorii</button><button class="nb" data-a="tab" data-v="med"><span>🧘</span>Meditație</button><button class="nb" data-a="tab" data-v="mind"><span>💚</span>Mental</button></nav>
+<div id="m"></div></div>
+<script>
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0'),esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),fm=v=>v.toFixed(2).replace('.',',');
+const dk=(d=new Date())=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+let S;try{S=JSON.parse(localStorage.getItem('wb2'))||{d:JSON.parse(localStorage.getItem('wellbeing_data')||'{}')}}catch{S={d:{}}}
+S.d=S.d||{};S.plan=S.plan||'free';S.goal=S.goal||2000;
+const sv=()=>{try{localStorage.setItem('wb2',JSON.stringify(S))}catch{}},G=k=>S.d[k]||{},D=()=>S.d[dk()]||(S.d[dk()]={});
+const plan=()=>S.plan!=='free'&&(S.paid||(S.trial||0)>Date.now())?S.plan:'free',prem=()=>plan()!=='free',tl=()=>Math.ceil(((S.trial||0)-Date.now())/864e5);
+const sc=x=>(x.mood!=null?20:0)+((x.water||0)>=8?20:0)+((x.steps||0)>=8000?20:0)+((x.sleep||0)>=7?20:0)+(x.med>0?20:0);
+const streak=()=>{let n=0;const d=new Date();if(!sc(G(dk(d))))d.setDate(d.getDate()-1);while(sc(G(dk(d)))){n++;d.setDate(d.getDate()-1)}return n};
+const last=n=>[...Array(n)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-n+1+i);return[d,G(dk(d))]});
+const E=['😔','😐','🙂','😊','😁'],EL=['Trist','Neutru','Bine','Fericit','Excelent'];
+const AF=['Pot face lucruri extraordinare.','Fiecare zi îmi aduce șanse noi de a crește.','Mă accept exact așa cum sunt.','Am puterea să trec peste obstacole.','Corpul meu merită grijă și odihnă.','Mintea mea e limpede și concentrată.','Sunt recunoscător pentru ce am.'];
+const FD=[['Piept de pui 100g',165,31,0,3.6],['Orez fiert 100g',130,2.7,28,.3],['Ou fiert',68,6,.6,4.8],['Banană medie',105,1.3,27,.4],['Iaurt grecesc 100g',59,10,3.6,.4],['Avocado 100g',160,2,9,15],['Salată verde 100g',15,1.4,2.9,.2],['Somon 100g',208,20,0,13],['Pâine integrală, felie',80,4,15,1.1],['Nuci 30g',196,4.6,4.1,19.6],['Ovăz 40g',150,5,27,3],['Cartofi fierți 100g',87,1.9,20,.1],['Paste fierte 100g',158,5.8,31,.9],['Telemea 50g',130,7,1,11],['Măr mediu',95,.5,25,.3],['Ciorbă de legume 300ml',90,3,14,2],['Mămăligă 150g',110,2.5,24,.5],['Lapte 200ml',90,6.6,9.6,3.6],['Migdale 30g',174,6.4,6.7,15],['Linte fiartă 100g',116,9,20,.4]];
+const MD=[{i:'🌬️',t:'Respirație 4-7-8',min:5,d:'Calmează sistemul nervos.',c:'#7C9885'},{i:'🌿',t:'Mindfulness',min:7,d:'Observă prezentul fără judecată.',c:'#5B8A8A'},{i:'🧘',t:'Body Scan',min:10,d:'Eliberează tensiunea din corp.',c:'#8B7BA8'},{i:'☁️',t:'Vizualizare',min:12,d:'Un loc liniștit și sigur.',c:'#B08A6B'}];
+const TP=[['🤗','Conexiune socială','Vorbește 15 minute cu cineva apropiat. Relațiile bune sunt un factor important de bunăstare.'],['🌳','Timp în natură','O plimbare scurtă afară te poate ajuta să te relaxezi și să-ți limpezești gândurile.'],['📵','Pauză de ecrane','Ia o oră fără telefon: citește, desenează sau doar privește în jur.'],['✍️','Jurnalizare','Notează 3 lucruri bune din zi. Un obicei mic, repetat, schimbă perspectiva.']];
+const PL=[{id:'free',n:'Free',m:0,y:0,f:['Tracking zilnic complet','2 meditații + respirație','8 alimente în bază','Istoric 7 zile','Export date']},{id:'plus',n:'Plus',m:19.99,y:149,f:['Tot ce e în Free','Toate meditațiile','20 alimente + aliment propriu','Insights 30 zile','Temă întunecată']},{id:'pro',n:'Pro',m:39.99,y:299,f:['Tot ce e în Plus','Coach AI săptămânal (curând)','Sincronizare cloud (curând)','Apple Health / Google Fit (curând)']}];
+let tab='home',cd=new Date(),mc=null,mT=0,mR=false,iv,bp='idle',bt=[],q='',evt='',tp=-1,ai=Math.random()*AF.length|0,modal=null,bill='y';
+const fmt=s=>pad(s/60|0)+':'+pad(s%60);
+const ins=()=>{if(!prem())return`<div class="card lk" data-a="pay"><b>📈 Insights 30 zile 🔒</b><small>Vezi ce îți crește scorul. Probează 7 zile gratuit.</small></div>`;const L=last(30).map(a=>a[1]),ac=L.filter(y=>sc(y)>0),av=k=>{const v=L.filter(y=>y[k]).map(y=>y[k]);return v.length?(v.reduce((a,b)=>a+b)/v.length).toFixed(1):'–'};return`<div class="card"><h2>📈 Insights 30 zile</h2><div class="st" style="border:0;margin:0 0 10px;padding:0"><div><b>${ac.length}</b><small>zile active</small></div><div><b>${av('sleep')}h</b><small>somn mediu</small></div><div><b>${av('water')}</b><small>pahare/zi</small></div></div><div class="ch">${L.slice(-14).map(y=>`<div><i style="height:${Math.max(sc(y)*.6,4)}px"></i></div>`).join('')}</div></div>`};
+const home=()=>{const x=G(dk()),s=sc(x),w=x.water||0,st=x.steps||0,sl=x.sleep||0,kc=(x.meals||[]).reduce((a,m)=>a+m.cal,0),C=326.7;
+return`<div class="card hero"><svg viewBox="0 0 130 130" width="148"><circle cx="65" cy="65" r="52" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="9"/><circle cx="65" cy="65" r="52" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-s/100)}" transform="rotate(-90 65 65)" style="transition:stroke-dashoffset .8s"/><text x="65" y="76" text-anchor="middle" fill="#fff" font-family="Cormorant Garamond" font-size="40" font-weight="700">${s}</text></svg><div>Scorul de azi · 🔥 ${streak()} zile la rând</div><div class="st">${[['💧',w+'/8'],['👣',st>=1e3?(st/1e3).toFixed(1)+'k':st],['😴',sl+'h'],['🧘',x.med||0]].map(([i,v])=>`<div>${i}<br><b>${v}</b></div>`).join('')}</div></div>
+<div class="card"><small>Afirmația zilei</small><h2 style="font-style:italic;font-size:21px;margin:6px 0 10px">„${AF[ai]}”</h2><button class="b o sm" data-a="aff">Alta ✨</button></div>
+<div class="card"><h2>Cum te simți azi?</h2><div class="mo">${E.map((e,i)=>`<div class="c"><button class="${x.mood===i?'on':''}" data-a="mood" data-v="${i}">${e}</button><small>${EL[i]}</small></div>`).join('')}</div></div>
+<div class="card"><div class="row" style="background:none;padding:0;margin:0 0 8px"><h2 style="margin:0">Hidratare</h2><small>${w}/8 pahare</small></div><div class="dr">${[...Array(8)].map((_,i)=>`<button class="${i<w?'on':''}" data-a="water" data-v="${i+1}">💧</button>`).join('')}</div><small>Atinge un pahar ca să-ți setezi nivelul.</small></div>
+<div class="g2">${[['👣 Pași','steps',st,8000,1],['😴 Somn (ore)','sleep',sl,8,.5]].map(([l,k,v,g,s])=>`<div class="card" style="margin:0 0 14px"><h2 style="font-size:16px">${l}</h2><input type="number" step="${s}" min="0" inputmode="decimal" data-i="${k}" value="${v||''}" placeholder="0" style="text-align:center;font-weight:600"><small class="c">Obiectiv: ${g}</small><div class="bar"><i style="width:${Math.min(v/g*100,100)}%"></i></div></div>`).join('')}</div>
+<div class="card"><div class="row" style="background:none;padding:0;margin:0"><h2 style="margin:0">🥗 Calorii</h2><small>${Math.round(kc)}/${S.goal} kcal</small></div><div class="bar"><i style="width:${Math.min(kc/S.goal*100,100)}%;${kc>S.goal?'background:#C47B6B':''}"></i></div></div>${ins()}`};
+const cal=()=>{const y=cd.getFullYear(),m=cd.getMonth(),off=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate(),td=dk(),k=dk(cd),ev=G(k).ev||[];let c='<i></i>'.repeat(off);
+for(let d=1;d<=n;d++){const kk=dk(new Date(y,m,d)),x=G(kk);c+=`<button class="cc${kk===td?' td':''}${kk===k?' sl':''}" data-a="day" data-v="${d}">${d}${x.mood!=null?`<small>${E[x.mood]}</small>`:''}${x.ev&&x.ev.length?'<u></u>':''}</button>`}
+return`<div class="card"><div class="row" style="background:none;padding:0;margin:0 0 10px"><button class="ic" data-a="pm" data-v="-1">‹</button><h2 style="margin:0;text-transform:capitalize">${cd.toLocaleDateString('ro-RO',{month:'long',year:'numeric'})}</h2><button class="ic" data-a="pm" data-v="1">›</button></div><div class="cg">${[...'LMMJVSD'].map(d=>`<small>${d}</small>`).join('')}${c}</div></div>
+<div class="card"><h2>📌 ${cd.toLocaleDateString('ro-RO',{day:'numeric',month:'long'})}</h2>${ev.length?'':'<small>Nicio activitate planificată.</small>'}${ev.map((t,i)=>`<div class="row"><span>${esc(t)}</span><button data-a="de" data-v="${i}">×</button></div>`).join('')}<div class="row" style="background:none;padding:0"><input data-i="ev" value="${esc(evt)}" placeholder="Adaugă activitate..."><button class="b" data-a="ae">+</button></div></div>
+<div class="card"><h2>📊 Dispoziție · 7 zile</h2><div class="ch">${last(7).map(([d,x])=>`<div>${x.mood!=null?E[x.mood]:'·'}<i style="height:${x.mood!=null?(x.mood+1)*9+6:6}px;${x.mood==null?'background:var(--line)':''}"></i>${'DLMMJVS'[d.getDay()]}</div>`).join('')}</div></div>`};
+const fl=()=>{const L=(prem()?FD:FD.slice(0,8)).filter(f=>f[0].toLowerCase().includes(q.toLowerCase()));return L.map(f=>`<div class="row"><div style="flex:1"><b>${f[0]}</b><small>P ${f[2]} · C ${f[3]} · G ${f[4]}</small></div><span class="kc">${f[1]}</span><button class="b sm" data-a="af" data-v="${FD.indexOf(f)}">+</button></div>`).join('')||'<small>Niciun rezultat.</small>'};
+const food=()=>{const M=G(dk()).meals||[],sm=k=>M.reduce((a,m)=>a+m[k],0),kc=sm('cal'),gl=S.goal,p=Math.min(kc/gl,1),C=389.6,r=gl-kc;
+return`<div class="card c"><svg viewBox="0 0 150 150" width="150"><circle cx="75" cy="75" r="62" fill="none" stroke="var(--line)" stroke-width="11"/><circle cx="75" cy="75" r="62" fill="none" stroke="${r<0?'#C47B6B':'#7C9885'}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-p)}" transform="rotate(-90 75 75)" style="transition:stroke-dashoffset .7s"/><text x="75" y="72" text-anchor="middle" fill="currentColor" font-family="Cormorant Garamond" font-size="28" font-weight="700">${Math.round(kc)}</text><text x="75" y="92" text-anchor="middle" fill="#8A8078" font-size="11">${r<0?'+'+Math.abs(Math.round(r))+' peste':Math.round(r)+' rămase'}</text></svg><div class="st" style="border-color:var(--line)">${[['Proteine',sm('p')],['Carbo',sm('c')],['Grăsimi',sm('f')]].map(([n,v])=>`<div><b>${Math.round(v)}g</b><small>${n}</small></div>`).join('')}</div><div class="row"><span>Obiectiv zilnic (kcal)</span><input type="number" inputmode="numeric" data-i="goal" value="${gl}" style="width:100px;text-align:center"></div></div>
+<div class="card"><h2>🍽️ Adaugă aliment</h2><input data-i="q" placeholder="Caută..." value="${esc(q)}"><div id="fl">${fl()}</div>${prem()?`<div class="row" style="background:none;padding:0"><input id="cn" placeholder="Aliment propriu"><input id="ck" type="number" inputmode="numeric" placeholder="kcal" style="width:90px"><button class="b sm" data-a="ac">+</button></div>`:`<div class="row lk" data-a="pay"><span>＋ Aliment propriu și încă 12 alimente 🔒</span></div>`}<small>Valorile sunt aproximative.</small></div>${M.length?`<div class="card"><h2>📋 Jurnal</h2>${M.map((m,i)=>`<div class="row"><span style="flex:1">${esc(m.name)}</span><span class="kc">${m.cal}</span><button data-a="df" data-v="${i}">×</button></div>`).join('')}</div>`:''}`};
+const BT={idle:['Pregătit','4 · 7 · 8'],in:['Inspiră','4 secunde'],hold:['Ține','7 secunde'],out:['Expiră','8 secunde'],done:['✓ Gata','4 cicluri']};
+const bUI=()=>{const e=$('#bc');if(!e)return;e.className='bc '+bp;$('#bx').textContent=BT[bp][0];$('#bs').textContent=BT[bp][1];$('#bb').textContent=bp==='idle'||bp==='done'?'Începe':'Oprește'};
+const stopB=()=>{bt.forEach(clearTimeout);bt=[];bp='idle'};
+const breath=()=>{stopB();let n=0;const cyc=()=>{bp='in';bUI();bt.push(setTimeout(()=>{bp='hold';bUI()},4e3),setTimeout(()=>{bp='out';bUI()},11e3),setTimeout(()=>{if(++n<4)cyc();else{bp='done';D().med=(D().med||0)+1;sv();bUI()}},19e3))};cyc()};
+const runMed=()=>{clearInterval(iv);iv=setInterval(()=>{mT--;const e=$('#tm');if(e)e.textContent=fmt(mT);if(mT<=0){clearInterval(iv);mR=false;mT=0;D().med=(D().med||0)+1;sv();render()}},1e3)};
+const med=()=>{const x=G(dk());
+if(mc)return`<div class="card c"><button class="b o sm" data-a="mx">← Înapoi</button><div style="font-size:42px;margin-top:12px">${mc.i}</div><h2>${mc.t}</h2><small>${mc.d}</small><div class="big" id="tm" style="font-size:56px;color:${mc.c};margin:18px 0">${fmt(mT)}</div><button class="b" style="background:${mc.c}" data-a="mt">${mR?'⏸ Pauză':mT===0?'↻ Repetă':'▶ Start'}</button>${mT===0&&!mR?'<h2 style="margin-top:16px">🎉 Sesiune completată!</h2>':''}</div>`;
+return`<div class="card c"><small>Sesiuni azi</small><div class="big" style="font-size:44px;color:var(--g)">${x.med||0}</div></div><div class="card"><h2>🌿 Meditații ghidate</h2>${MD.map((m,i)=>`<div class="row" data-a="ms" data-v="${i}" style="cursor:pointer"><span style="font-size:24px">${m.i}</span><div style="flex:1"><b>${m.t}</b><small>${m.d}</small></div><b style="color:${m.c}">${i>1&&!prem()?'🔒':m.min+' min'}</b></div>`).join('')}</div><div class="card c"><h2>🌬️ Respirație 4-7-8</h2><div class="bc" id="bc"><div><b id="bx"></b><small id="bs"></small></div></div><button class="b" id="bb" data-a="br"></button></div>`};
+const mind=()=>{const x=G(dk()),g=x.gr||['','',''],L=last(7).map(a=>a[1].mood).filter(v=>v!=null),av=L.length?L.reduce((a,b)=>a+b)/L.length:null;
+return`<div class="card"><h2>💚 Starea mea</h2><div class="mo">${E.map((e,i)=>`<div class="c"><button class="${x.mood===i?'on':''}" data-a="mood" data-v="${i}">${e}</button><small>${EL[i]}</small></div>`).join('')}</div>${av!==null?`<div class="row"><span>Media pe 7 zile</span><span class="kc">${E[Math.round(av)]} ${av.toFixed(1)}/4</span></div>`:''}</div>
+<div class="card"><h2>🙏 Recunoștință</h2><small style="margin-bottom:8px">3 lucruri pentru care ești recunoscător azi</small>${[0,1,2].map(i=>`<div class="row" style="background:none;padding:0"><span>${'🌱🌿🌳'.slice(i*2,i*2+2)}</span><input data-i="g" data-v="${i}" value="${esc(g[i]||'')}" placeholder="Lucrul ${i+1}..."></div>`).join('')}</div>
+<div class="card"><h2>✍️ Jurnal</h2><textarea data-i="j" rows="5" placeholder="Scrie liber, fără judecată...">${esc(x.j||'')}</textarea><small style="text-align:right" id="jc">${(x.j||'').length} caractere</small></div>
+<div class="card"><h2>💡 Sfaturi</h2>${TP.map((t,i)=>`<div class="row" data-a="tip" data-v="${i}" style="cursor:pointer"><span style="font-size:22px">${t[0]}</span><b style="flex:1">${t[1]}</b><span>${tp===i?'⌄':'›'}</span></div>${tp===i?`<small style="padding:8px 12px;font-size:13px">${t[2]}</small>`:''}`).join('')}</div>
+<div class="card" style="border:1.5px solid #E8C9A0"><h2>📞 Dacă ai nevoie de ajutor</h2><div style="line-height:1.9;font-size:14px">🚨 Urgențe: <b>112</b><br>💙 Antisuicid România: <b>0800 801 200</b><br>🧒 Telefonul Copilului: <b>116 111</b></div><small>Aplicația nu înlocuiește sprijinul unui specialist.</small></div>`};
+const hdr=()=>{const h=new Date().getHours();return`<div style="display:flex;align-items:center;gap:10px;min-width:0"><img src="icon.svg" width="40" height="40" alt="VitaSphere" style="border-radius:11px;flex:none"><div><h1>${h<12?'Bună dimineața':h<18?'Bună ziua':'Bună seara'}</h1><small>VitaSphere · ${new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long'})}</small></div></div><div class="hb"><button class="pill${prem()?' gold':''}" data-a="pay">${prem()?(S.paid?plan().toUpperCase():'Trial · '+tl()+'z'):'✨ Premium'}</button><button class="ic" data-a="set">⚙️</button></div>`};
+const pc=p=>{const cur=plan()===p.id,y=bill==='y';return`<div class="pl${p.id==='plus'?' hot':''}">${p.id==='plus'?'<em>Cel mai ales</em>':''}<div class="row" style="background:none;padding:0;margin:0"><h2 style="margin:0">${p.n}</h2><div style="text-align:right"><b>${p.m?fm(y?p.y/12:p.m)+' lei/lună':'0 lei'}</b>${p.m&&y?`<small>${p.y} lei facturat anual</small>`:''}</div></div><ul>${p.f.map(f=>`<li>${f}</li>`).join('')}</ul><button class="b${p.id==='plus'?'':' o'}" style="width:100%" data-a="pk" data-v="${p.id}">${cur?'Planul tău':p.m?(S.trialUsed?'Alege '+p.n:'Încearcă 7 zile gratuit'):'Rămâi pe Free'}</button></div>`};
+const sheet=()=>modal==='set'?`<div class="ov" data-a="close"><div class="sh"><h2>Setări</h2><div class="row"><b>Temă întunecată ${prem()?'':'🔒'}</b><button class="b sm" data-a="th">${S.dark&&prem()?'Oprește':'Pornește'}</button></div><div class="row"><b>Exportă datele</b><button class="b sm" data-a="ex">JSON</button></div><div class="row"><b>Importă date</b><input type="file" accept=".json" data-i="imp" style="width:150px;font-size:12px"></div><small>Datele rămân doar pe acest dispozitiv. Fă export din când în când.</small></div></div>`:
+`<div class="ov" data-a="close"><div class="sh"><img src="icon.svg" width="46" height="46" alt="" style="border-radius:13px;margin-bottom:8px"><h2>VitaSphere Premium</h2><small>${S.trialUsed?'Alege planul potrivit.':'7 zile gratuit. Te anunțăm cu 2 zile înainte să se termine.'}</small><div class="seg"><button class="${bill==='m'?'on':''}" data-a="bl" data-v="m">Lunar</button><button class="${bill==='y'?'on':''}" data-a="bl" data-v="y">Anual · −38%</button></div>${PL.map(pc).join('')}<small class="c">Mod demo: plata nu e conectată încă.</small></div></div>`;
+const V={home,cal,food,med,mind};
+function render(){document.documentElement.dataset.t=S.dark&&prem()?'dark':'';$('#hd').innerHTML=hdr();$('#v').innerHTML=V[tab]();document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.v===tab));$('#m').innerHTML=modal?sheet():'';if(tab==='med')bUI()}
+const A={tab:v=>{tab=v;modal=null;render();$('#v').scrollTop=0},mood:v=>{D().mood=+v;sv();render()},water:v=>{const x=D();x.water=(x.water||0)===+v?+v-1:+v;sv();render()},aff:()=>{ai=(ai+1)%AF.length;render()},day:v=>{cd=new Date(cd.getFullYear(),cd.getMonth(),+v);render()},pm:v=>{cd=new Date(cd.getFullYear(),cd.getMonth()+(+v),1);render()},
+ae:()=>{const t=evt.trim();if(!t)return;const k=dk(cd),x=S.d[k]||(S.d[k]={});x.ev=[...(x.ev||[]),t];evt='';sv();render()},de:v=>{G(dk(cd)).ev.splice(+v,1);sv();render()},
+af:v=>{const f=FD[+v];D().meals=[...(D().meals||[]),{name:f[0],cal:f[1],p:f[2],c:f[3],f:f[4]}];q='';sv();render()},df:v=>{D().meals.splice(+v,1);sv();render()},ac:()=>{const n=$('#cn').value.trim(),k=parseFloat($('#ck').value);if(!n||!(k>=0))return;D().meals=[...(D().meals||[]),{name:n,cal:k,p:0,c:0,f:0}];sv();render()},
+ms:v=>{if(+v>1&&!prem())return A.pay();mc=MD[+v];mT=mc.min*60;mR=false;render()},mt:()=>{mR=!mR;if(mR){if(mT<=0)mT=mc.min*60;runMed()}else clearInterval(iv);render()},mx:()=>{clearInterval(iv);mc=null;mR=false;render()},
+br:()=>{if(bp==='idle'||bp==='done')breath();else{stopB();bUI()}},tip:v=>{tp=tp===+v?-1:+v;render()},
+pay:()=>{modal='pay';render()},set:()=>{modal='set';render()},close:()=>{modal=null;render()},bl:v=>{bill=v;render()},
+pk:id=>{S.plan=id;if(id!=='free'){if(!S.trialUsed){S.trialUsed=1;S.trial=Date.now()+7*864e5}else S.paid=1}sv();modal=null;render()},
+th:()=>{if(!prem())return A.pay();S.dark=!S.dark;sv();render()},ex:()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='vitasphere-'+dk()+'.json';a.click()}};
+document.addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(!a||(a.dataset.a==='close'&&e.target!==a))return;const f=A[a.dataset.a];f&&f(a.dataset.v)});
+document.addEventListener('change',e=>{const t=e.target,i=t.dataset.i;if(!i)return;
+if(i==='imp'){const f=t.files[0];if(f)f.text().then(s=>{try{const o=JSON.parse(s);if(o&&o.d){S.d={...S.d,...o.d};sv();modal=null;render()}}catch{}});return}
+if(i==='steps')D().steps=Math.max(0,parseInt(t.value)||0);else if(i==='sleep')D().sleep=Math.max(0,Math.min(24,parseFloat(t.value)||0));else if(i==='goal')S.goal=Math.max(500,parseInt(t.value)||2000);else return;sv();render()});
+document.addEventListener('input',e=>{const t=e.target,i=t.dataset.i;
+if(i==='j'){D().j=t.value;$('#jc').textContent=t.value.length+' caractere'}else if(i==='g'){const x=D();(x.gr=x.gr||['','',''])[+t.dataset.v]=t.value}else if(i==='q'){q=t.value;$('#fl').innerHTML=fl();return}else if(i==='ev'){evt=t.value;return}else return;sv()});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.i==='ev')A.ae()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!mR&&bp==='idle')render()});
+render();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script></body></html>

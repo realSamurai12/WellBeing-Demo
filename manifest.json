@@ -1,0 +1,1 @@
+{"name":"VitaSphere","short_name":"VitaSphere","description":"Aplicația ta de well-being","start_url":"./","scope":"./","display":"standalone","background_color":"#F5F1EA","theme_color":"#7C9885","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
